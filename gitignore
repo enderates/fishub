@@ -1,0 +1,12 @@
+# node_modules klasörünü dışla
+node_modules/
+
+# expo ve react native cache
+.expo/
+.expo-shared/
+
+# işletim sistemi dosyaları
+.DS_Store
+
+# çevresel değişkenler (varsa)
+.env
