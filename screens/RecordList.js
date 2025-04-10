@@ -6,26 +6,20 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   Button,
   TouchableOpacity,
   Modal,
   ActivityIndicator,
-  Platform,
   ScrollView,
-  Alert
+  Alert,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, query, where, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
-const lookupKeys = {
-  speciesLabel: 'fishSpecies'
-};
-
 const COLUMN_HEADERS = [
-  '', '', 'Tür', 'Lokasyon', 'Tarih', 'Ağırlık', 'Boy', 'Cinsiyet', 'Sağlık', 'Kamış', 'Makine', 'Misina',
-  'Yem Tipi', 'Yem Rengi', 'Yem Gramajı', 'Su Sıcaklığı', 'Deniz Rengi', 'Akıntı', 'Tuzluluk', 'Av Zamanı', 'Ay Durumu'
+  'Sil', 'Düzenle', 'Tür', 'Lokasyon', 'Tarih', 'Boy', 'Ağırlık', 'Kamış', 'Makine', 'Misina', 'Deniz Rengi', 'Ay Durumu', 'Su Sıcaklığı', 'Akıntı'
 ];
 
 export default function RecordList() {
@@ -33,48 +27,34 @@ export default function RecordList() {
   const [fishRecords, setFishRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedSpecies, setSelectedSpecies] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
-  const [lookupOptions, setLookupOptions] = useState([]);
-  const [lookupModalVisible, setLookupModalVisible] = useState(false);
-  const [activeLookupKey, setActiveLookupKey] = useState('');
-  const [activeSetter, setActiveSetter] = useState(null);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
 
-  const fetchLookupData = async (key, setter) => {
-    const actualKey = lookupKeys[key];
-    setActiveLookupKey(key);
-    setActiveSetter(() => setter);
-    setLookupModalVisible(true);
-    try {
-      const docRef = doc(db, 'lookup_tables', actualKey);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const values = docSnap.data().values;
-        setLookupOptions(values);
-      } else {
-        console.log(`${key} verisi bulunamadı.`);
-        setLookupOptions([]);
-      }
-    } catch (error) {
-      console.error(`${key} verisi alınamadı:`, error);
-      setLookupOptions([]);
-    }
-  };
+  const [fishSpecies, setFishSpecies] = useState([]);
+  const [speciesModalVisible, setSpeciesModalVisible] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState({ show: false, type: null });
 
   const fetchRecords = async () => {
     setLoading(true);
     try {
       let q = collection(db, 'fish_entries');
-      const filters = [];
+      let constraints = [];
+
       if (selectedSpecies) {
-        filters.push(where('speciesLabel', '==', selectedSpecies));
+        constraints.push(where('speciesLabel', '==', selectedSpecies));
       }
-      if (selectedDate) {
-        filters.push(where('dateTime', '>=', new Date(`${selectedDate}T00:00:00`)));
-        filters.push(where('dateTime', '<=', new Date(`${selectedDate}T23:59:59`)));
+
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+start.setHours(0, 0, 0, 0);
+const end = new Date(endDate);
+end.setHours(23, 59, 59, 999);
+        constraints.push(where('timestamp', '>=', start));
+        constraints.push(where('timestamp', '<=', end));
       }
-      if (filters.length > 0) {
-        q = query(q, ...filters);
-      }
+
+      q = constraints.length > 0 ? query(q, ...constraints) : q;
+
       const querySnapshot = await getDocs(q);
       const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setFishRecords(results);
@@ -90,9 +70,17 @@ export default function RecordList() {
     }, [])
   );
 
+  useEffect(() => {
+    fetch('https://api.gbif.org/v1/species/search?taxon_key=204&limit=50')
+      .then(res => res.json())
+      .then(data => {
+        const list = data.results.map(item => ({ label: item.canonicalName, value: item.canonicalName }));
+        setFishSpecies(list);
+      });
+  }, []);
+
   const handleDelete = async (id) => {
-    console.log("Silinecek ID:", id);
-    Alert.alert('Onay', `${id} Numaralı kayıt silinecektir. Onaylıyor musunuz?`, [
+    Alert.alert('Onay', 'Bu kayıt silinecek. Emin misiniz?', [
       { text: 'İptal', style: 'cancel' },
       {
         text: 'Evet', onPress: async () => {
@@ -121,32 +109,60 @@ export default function RecordList() {
 
   const renderItemRow = (item) => (
     <View key={item.id} style={styles.rowContainer}>
-      <TouchableOpacity style={styles.actionCell} onPress={() => handleDelete(item.id)}>
-        <Text style={{ color: 'red' }}>Sil</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.actionCell} onPress={() => navigation.navigate('EditFish', { id: item.id })}>
-        <Text style={{ color: 'blue' }}>Değiştir</Text>
-      </TouchableOpacity>
-      {[item.speciesLabel, item.location, new Date(item.dateTime).toLocaleString(), item.weight, item.length, item.gender, item.healthStatus, item.rodType, item.reelType, item.lineThickness, item.baitType, item.baitColor, item.baitWeight, item.waterTemp, item.seaColor, item.currentStatus, item.salinity, item.fishingTime, item.moonPhase].map((value, idx) => (
+      <View style={styles.actionCellLeftAlign}>
+        <TouchableOpacity onPress={() => handleDelete(item.id)}>
+          <Text style={{ color: 'red' }}>Sil</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.actionCellLeftAlign}>
+        <TouchableOpacity onPress={() => navigation.navigate('EditFish', { id: item.id })}>
+          <Text style={{ color: 'blue' }}>Düzenle</Text>
+        </TouchableOpacity>
+      </View>
+      {[item.speciesLabel, item.location, new Date(item.dateTime).toLocaleString('tr-TR'), item.length, item.weight, item.rodType, item.reelType, item.lineThickness, item.seaColor, item.moonPhase, item.waterTemp, item.currentStatus].map((value, idx) => (
         <View key={idx} style={styles.cell}><Text>{value}</Text></View>
       ))}
     </View>
   );
 
+  const showPicker = (type) => setDatePickerVisible({ show: true, type });
+
+  const onDateChange = (event, selectedDate) => {
+    if (event.type === 'dismissed') {
+      setDatePickerVisible({ show: false, type: null });
+      return;
+    }
+    const { type } = datePickerVisible;
+    setDatePickerVisible({ show: false, type: null });
+    if (!selectedDate) return;
+    if (type === 'start') setStartDate(selectedDate);
+    if (type === 'end') setEndDate(selectedDate);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Kayıt Raporlama</Text>
 
-      <TouchableOpacity style={styles.selectBox} onPress={() => fetchLookupData('speciesLabel', setSelectedSpecies)}>
+      <TouchableOpacity style={styles.selectBox} onPress={() => setSpeciesModalVisible(true)}>
         <Text>{selectedSpecies || 'Balık Türü Seçin'}</Text>
       </TouchableOpacity>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Tarih (YYYY-MM-DD)"
-        value={selectedDate}
-        onChangeText={setSelectedDate}
-      />
+      <TouchableOpacity style={styles.selectBox} onPress={() => showPicker('start')}>
+        <Text>{startDate ? new Date(startDate).toLocaleDateString('tr-TR') : 'Başlangıç Tarihi Seç'}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.selectBox} onPress={() => showPicker('end')}>
+        <Text>{endDate ? new Date(endDate).toLocaleDateString('tr-TR') : 'Bitiş Tarihi Seç'}</Text>
+      </TouchableOpacity>
+
+      {datePickerVisible.show && (
+        <DateTimePicker
+          value={new Date()}
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+        />
+      )}
 
       <Button title="Raporla" onPress={fetchRecords} disabled={loading} />
 
@@ -159,23 +175,19 @@ export default function RecordList() {
         </ScrollView>
       )}
 
-      <Modal
-        visible={lookupModalVisible}
-        animationType="slide"
-        onRequestClose={() => setLookupModalVisible(false)}
-      >
+      <Modal visible={speciesModalVisible} animationType="slide">
         <View style={{ flex: 1, padding: 20 }}>
-          <Text style={styles.header}>{activeLookupKey} Seçimi</Text>
+          <Text style={styles.header}>Balık Türü Seç</Text>
           <FlatList
-            data={lookupOptions}
+            data={fishSpecies}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => { activeSetter(item); setLookupModalVisible(false); }} style={styles.listItem}>
-                <Text>{item}</Text>
+              <TouchableOpacity onPress={() => { setSelectedSpecies(item.value); setSpeciesModalVisible(false); }} style={styles.listItem}>
+                <Text>{item.label}</Text>
               </TouchableOpacity>
             )}
           />
-          <Button title="Kapat" onPress={() => setLookupModalVisible(false)} />
+          <Button title="Kapat" onPress={() => setSpeciesModalVisible(false)} />
         </View>
       </Modal>
     </View>
@@ -229,10 +241,10 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderColor: '#ddd',
   },
-  actionCell: {
-    width: 70,
-    justifyContent: 'center',
-    alignItems: 'center',
+  actionCellLeftAlign: {
+    width: 130,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
     borderRightWidth: 1,
     borderColor: '#ddd',
     padding: 10,

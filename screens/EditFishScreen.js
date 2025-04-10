@@ -1,3 +1,8 @@
+// screens/FishEntryScreen.js
+
+// (Güncellenmiş hali yukarıda zaten mevcut)
+
+
 // screens/EditFishScreen.js
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +13,7 @@ import {
   Button,
   StyleSheet,
   ActivityIndicator,
-  Platform, 
+  Platform,
   Alert,
   KeyboardAvoidingView,
   ScrollView,
@@ -32,6 +37,9 @@ export default function EditFishScreen() {
 
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fishSpecies, setFishSpecies] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [loadingSpecies, setLoadingSpecies] = useState(true);
 
   const [lookupOptions, setLookupOptions] = useState([]);
   const [activeLookupKey, setActiveLookupKey] = useState('');
@@ -40,16 +48,12 @@ export default function EditFishScreen() {
   const [loadingLookup, setLoadingLookup] = useState(false);
 
   const lookupKeys = {
-    gender: 'genderOptions',
-    healthStatus: 'healthOptions',
     rodType: 'rodTypes',
     reelType: 'reelTypes',
     lineThickness: 'lineThicknessOptions',
-    baitType: 'baitTypes',
-    baitColor: 'baitColors',
-    baitWeight: 'baitWeights',
     seaColor: 'seaColors',
-    moonPhase: 'moonPhases'
+    moonPhase: 'moonPhases',
+    currentStatus: 'currentStatuses'
   };
 
   const fetchLookupData = async (key, setter) => {
@@ -82,7 +86,6 @@ export default function EditFishScreen() {
           if (docSnap.exists()) {
             setRecord(docSnap.data());
           } else {
-            console.error('Kayıt bulunamadı');
             Alert.alert('Hata', 'Kayıt bulunamadı.');
           }
         } catch (error) {
@@ -94,6 +97,23 @@ export default function EditFishScreen() {
       fetchData();
     }
   }, [recordId]);
+
+  useEffect(() => {
+    fetch('https://api.gbif.org/v1/species/search?taxon_key=204&limit=50')
+      .then(response => response.json())
+      .then(data => {
+        const speciesList = data.results.map(item => ({
+          label: item.canonicalName,
+          value: item.key.toString(),
+        }));
+        setFishSpecies(speciesList);
+        setLoadingSpecies(false);
+      })
+      .catch(error => {
+        console.error('Balık türleri alınamadı:', error);
+        setLoadingSpecies(false);
+      });
+  }, []);
 
   const handleUpdate = async () => {
     if (!recordId || !record) return;
@@ -107,56 +127,106 @@ export default function EditFishScreen() {
     }
   };
 
-  if (loading) {
-    return <ActivityIndicator size="large" style={{ marginTop: 50 }} />;
-  }
-
-  if (!record) {
-    return <Text style={{ marginTop: 50, textAlign: 'center' }}>Kayıt bulunamadı.</Text>;
-  }
-
   const updateField = (key, value) => {
     setRecord(prev => ({ ...prev, [key]: value }));
   };
+
+  if (loading) return <ActivityIndicator size="large" style={{ marginTop: 50 }} />;
+  if (!record) return <Text style={{ marginTop: 50, textAlign: 'center' }}>Kayıt bulunamadı.</Text>;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Veriyi Güncelle</Text>
 
-        {Object.entries({
-          'Balık Türü': 'speciesLabel',
-          'Boy (cm)': 'length',
-          'Ağırlık (gr)': 'weight',
-          'Cinsiyet': 'gender',
-          'Sağlık Durumu': 'healthStatus',
-          'Kamış Tipi': 'rodType',
-          'Makine Tipi': 'reelType',
-          'Misina Kalınlığı': 'lineThickness',
-          'Yem Tipi': 'baitType',
-          'Yem Rengi': 'baitColor',
-          'Yem Gramajı': 'baitWeight',
-          'Lokasyon': 'location',
-          'Su Sıcaklığı': 'waterTemp',
-          'Deniz Rengi': 'seaColor',
-          'Akıntı Durumu': 'currentStatus',
-          'Tuzluluk Derecesi': 'salinity',
-          'Av Zamanı': 'fishingTime',
-          'Ay Durumu': 'moonPhase'
-        }).map(([label, key], index) => (
-          <View key={index} style={styles.inputGroup}>
-            <Text style={styles.label}>{label}</Text>
-            {lookupKeys[key] ? (
-              <TouchableOpacity style={styles.selectBox} onPress={() => fetchLookupData(key, value => updateField(key, value))}>
-                <Text>{record[key] || 'Seçiniz...'}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TextInput
-                style={styles.input}
-                value={record[key] || ''}
-                onChangeText={(value) => updateField(key, value)}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Balık Türü</Text>
+          <TouchableOpacity
+            style={styles.selectBox}
+            onPress={() => setModalVisible(true)}
+          >
+            <Text>{record.speciesLabel || 'Balık türü seçin...'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Modal visible={modalVisible} animationType="slide">
+          <View style={{ flex: 1, padding: 20 }}>
+            <Text style={styles.title}>Balık Türü Seçimi</Text>
+            {loadingSpecies ? <ActivityIndicator size="large" /> : (
+              <FlatList
+                data={fishSpecies}
+                keyExtractor={(item) => item.value}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => {
+                      updateField('species', item.value);
+                      updateField('speciesLabel', item.label);
+                      setModalVisible(false);
+                    }}
+                    style={styles.listItem}
+                  >
+                    <Text>{item.label}</Text>
+                  </TouchableOpacity>
+                )}
               />
             )}
+            <Button title="Kapat" onPress={() => setModalVisible(false)} />
+          </View>
+        </Modal>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Lokasyon</Text>
+          <TouchableOpacity
+            style={styles.selectBox}
+            onPress={() => navigation.navigate('MapPickerScreen', {
+              onLocationSelected: (coords) => {
+                const formatted = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+                updateField('location', formatted);
+              },
+            })}
+          >
+            <Text>{record.location || 'Konum seçin...'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {[{
+          label: 'Boy (cm)', key: 'length'
+        }, {
+          label: 'Ağırlık (gr)', key: 'weight'
+        }, {
+          label: 'Su Sıcaklığı', key: 'waterTemp'
+        }].map(({ label, key }, idx) => (
+          <View key={idx} style={styles.inputGroup}>
+            <Text style={styles.label}>{label}</Text>
+            <TextInput
+              style={styles.input}
+              value={record[key] || ''}
+              onChangeText={(val) => updateField(key, val)}
+            />
+          </View>
+        ))}
+
+        {[{
+          label: 'Kamış Tipi', key: 'rodType'
+        }, {
+          label: 'Makine Tipi', key: 'reelType'
+        }, {
+          label: 'Misina Kalınlığı', key: 'lineThickness'
+        }, {
+          label: 'Denizin Rengi', key: 'seaColor'
+        }, {
+          label: 'Ayın Durumu', key: 'moonPhase'
+        }, {
+          label: 'Akıntı Durumu', key: 'currentStatus'
+        }].map(({ label, key }, idx) => (
+          <View key={idx} style={styles.inputGroup}>
+            <Text style={styles.label}>{label}</Text>
+            <TouchableOpacity
+              style={styles.selectBox}
+              onPress={() => fetchLookupData(key, val => updateField(key, val))}
+            >
+              <Text>{record[key] || 'Seçiniz...'}</Text>
+            </TouchableOpacity>
           </View>
         ))}
 
@@ -202,3 +272,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee'
   },
 });
+
+
+// screens/RecordList.js
+
+// (Güncellenmiş hali yukarıda zaten mevcut)
