@@ -17,6 +17,7 @@ import {
   ImageBackground,
   SafeAreaView
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebaseConfig';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
@@ -174,7 +175,7 @@ export default function FishEntryScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Balık Türü</Text>
               <TouchableOpacity style={styles.selectBox} onPress={() => setModalVisible(true)}>
-                <Text>{selectedLabel || 'Balık türü seçin...'}</Text>
+                <Text style={styles.selectBoxText}>{selectedLabel || 'Balık türü seçin...'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -204,51 +205,47 @@ export default function FishEntryScreen() {
                   setLocation(formatted);
                 },
               })}>
-                <Text>{location || 'Konum seçin...'}</Text>
+                <Text style={styles.selectBoxText}>{location || 'Konum seçin...'}</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={Platform.OS === 'web' ? styles.inputGroup : styles.dateBox}>
-              <Text style={styles.label}>Tarih & Saat</Text>
-              {Platform.OS === 'web' ? (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    value={webDate}
-                    onChangeText={setWebDate}
-                    placeholder="YYYY-MM-DD"
+            {Platform.OS !== 'web' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Tarih & Saat</Text>
+                <View style={styles.selectBox}>
+                  <DateTimePicker
+                    value={dateTime}
+                    onChange={(event, selectedDate) => setDateTime(selectedDate || dateTime)}
+                    mode="datetime"
+                    textColor="#fff"
+                    style={{ width: '100%' }}
                   />
-                  <TextInput
-                    style={styles.input}
-                    value={webTime}
-                    onChangeText={setWebTime}
-                    placeholder="HH:mm"
-                  />
-                </>
-              ) : (
-                <DateTimePicker
-                  value={dateTime}
-                  onChange={(event, selectedDate) => setDateTime(selectedDate || dateTime)}
-                  mode="datetime"
-                  style={{ backgroundColor: 'white' }}
-                />
-              )}
-            </View>
+                </View>
+              </View>
+            )}
 
             {[{
-              label: 'Boy (cm)', state: length, setter: setLength
+              label: 'Boy (cm)', value: length, setter: setLength
             }, {
-              label: 'Ağırlık (gr)', state: weight, setter: setWeight
+              label: 'Ağırlık (gr)', value: weight, setter: setWeight
             }, {
-              label: 'Su Sıcaklığı', state: waterTemp, setter: setWaterTemp
-            }].map(({ label, state, setter }, index) => (
+              label: 'Su Sıcaklığı', value: waterTemp, setter: setWaterTemp
+            }].map(({ label, value, setter }, index) => (
               <View key={index} style={styles.inputGroup}>
                 <Text style={styles.label}>{label}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={state}
-                  onChangeText={setter}
-                />
+                <View style={styles.selectBoxSmall}>
+                  <Picker
+                    selectedValue={value}
+                    onValueChange={(val) => setter(val)}
+                    itemStyle={styles.pickerItem}
+                    style={styles.picker}
+                    dropdownIconColor="#fff"
+                  >
+                    {[...Array(301).keys()].map(n => (
+                      <Picker.Item key={n} label={`${n}`} value={`${n}`} />
+                    ))}
+                  </Picker>
+                </View>
               </View>
             ))}
 
@@ -268,7 +265,7 @@ export default function FishEntryScreen() {
               <View key={index} style={styles.inputGroup}>
                 <Text style={styles.label}>{label}</Text>
                 <TouchableOpacity style={styles.selectBox} onPress={() => fetchLookupData(key, setter)}>
-                  <Text>{value || 'Seçiniz...'}</Text>
+                  <Text style={styles.selectBoxText}>{value || 'Seçiniz...'}</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -345,16 +342,27 @@ const styles = StyleSheet.create({
   selectBox: {
     borderWidth: 1,
     borderRadius: 5,
-    padding: 12,
+    padding: 10,
     backgroundColor: 'rgba(255,255,255,0.2)'
   },
-  dateBox: {
+  selectBoxSmall: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-    backgroundColor: '#f9f9f9'
+    borderRadius: 5,
+    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.2)'
+  },
+  selectBoxText: {
+    color: '#fff'
+  },
+  picker: {
+    height: 40,
+    color: '#fff',
+    backgroundColor: 'transparent',
+  },
+  pickerItem: {
+    fontSize: 14,
+    color: '#fff',
+    height: 44,
   },
   listItem: {
     padding: 15,
