@@ -161,7 +161,7 @@ export default function FishEntryScreen() {
   };
 
   return (
-    <ImageBackground source={require('../assets/bg01.png')} style={styles.background} resizeMode="cover">
+    <ImageBackground source={require('../assets/bg06.png')} style={styles.background} resizeMode="cover">
       <SafeAreaView style={{ flex: 1 }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButtonContainer}>
           <Text style={styles.backText}>← Geri</Text>

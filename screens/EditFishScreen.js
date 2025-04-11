@@ -1,8 +1,3 @@
-// screens/FishEntryScreen.js
-
-// (Güncellenmiş hali yukarıda zaten mevcut)
-
-
 // screens/EditFishScreen.js
 
 import React, { useState, useEffect } from 'react';
@@ -10,7 +5,6 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   ActivityIndicator,
   Platform,
@@ -19,11 +13,14 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
-  Modal
+  Modal,
+  ImageBackground,
+  SafeAreaView
 } from 'react-native';
 import { db } from '../firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import ModernButton from '../components/ModernButton';
 
 let DateTimePicker;
 if (Platform.OS !== 'web') {
@@ -37,15 +34,13 @@ export default function EditFishScreen() {
 
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [fishSpecies, setFishSpecies] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [loadingSpecies, setLoadingSpecies] = useState(true);
-
   const [lookupOptions, setLookupOptions] = useState([]);
   const [activeLookupKey, setActiveLookupKey] = useState('');
   const [activeSetter, setActiveSetter] = useState(null);
   const [lookupModalVisible, setLookupModalVisible] = useState(false);
   const [loadingLookup, setLoadingLookup] = useState(false);
+  const [fishSpecies, setFishSpecies] = useState([]);
+  const [speciesModalVisible, setSpeciesModalVisible] = useState(false);
 
   const lookupKeys = {
     rodType: 'rodTypes',
@@ -96,9 +91,7 @@ export default function EditFishScreen() {
       };
       fetchData();
     }
-  }, [recordId]);
 
-  useEffect(() => {
     fetch('https://api.gbif.org/v1/species/search?taxon_key=204&limit=50')
       .then(response => response.json())
       .then(data => {
@@ -107,13 +100,9 @@ export default function EditFishScreen() {
           value: item.key.toString(),
         }));
         setFishSpecies(speciesList);
-        setLoadingSpecies(false);
       })
-      .catch(error => {
-        console.error('Balık türleri alınamadı:', error);
-        setLoadingSpecies(false);
-      });
-  }, []);
+      .catch(error => console.error('Balık türleri alınamadı:', error));
+  }, [recordId]);
 
   const handleUpdate = async () => {
     if (!recordId || !record) return;
@@ -135,145 +124,147 @@ export default function EditFishScreen() {
   if (!record) return <Text style={{ marginTop: 50, textAlign: 'center' }}>Kayıt bulunamadı.</Text>;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Veriyi Güncelle</Text>
+    <ImageBackground source={require('../assets/bg06.png')} style={{ flex: 1 }} resizeMode="cover">
+      <SafeAreaView style={{ flex: 1 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButtonContainer}>
+          <Text style={styles.backText}>← Geri</Text>
+        </TouchableOpacity>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Balık Türü</Text>
-          <TouchableOpacity
-            style={styles.selectBox}
-            onPress={() => setModalVisible(true)}
-          >
-            <Text>{record.speciesLabel || 'Balık türü seçin...'}</Text>
-          </TouchableOpacity>
-        </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+            <Text style={styles.title}>Veriyi Güncelle</Text>
 
-        <Modal visible={modalVisible} animationType="slide">
-          <View style={{ flex: 1, padding: 20 }}>
-            <Text style={styles.title}>Balık Türü Seçimi</Text>
-            {loadingSpecies ? <ActivityIndicator size="large" /> : (
-              <FlatList
-                data={fishSpecies}
-                keyExtractor={(item) => item.value}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    onPress={() => {
-                      updateField('species', item.value);
-                      updateField('speciesLabel', item.label);
-                      setModalVisible(false);
-                    }}
-                    style={styles.listItem}
-                  >
-                    <Text>{item.label}</Text>
-                  </TouchableOpacity>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Balık Türü</Text>
+              <TouchableOpacity style={styles.selectBox} onPress={() => setSpeciesModalVisible(true)}>
+                <Text>{record.speciesLabel || 'Balık türü seçin...'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Lokasyon</Text>
+              <TouchableOpacity
+                style={styles.selectBox}
+                onPress={() => navigation.navigate('MapPickerScreen', {
+                  onLocationSelected: (coords) => {
+                    const formatted = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+                    updateField('location', formatted);
+                  },
+                })}
+              >
+                <Text>{record.location || 'Konum seçin...'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {[{
+              label: 'Boy (cm)', key: 'length'
+            }, {
+              label: 'Ağırlık (gr)', key: 'weight'
+            }, {
+              label: 'Su Sıcaklığı', key: 'waterTemp'
+            }].map(({ label, key }, idx) => (
+              <View key={idx} style={styles.inputGroup}>
+                <Text style={styles.label}>{label}</Text>
+                <TextInput
+                  style={styles.input}
+                  value={record[key] || ''}
+                  onChangeText={(val) => updateField(key, val)}
+                />
+              </View>
+            ))}
+
+            {[{
+              label: 'Kamış Tipi', key: 'rodType'
+            }, {
+              label: 'Makine Tipi', key: 'reelType'
+            }, {
+              label: 'Misina Kalınlığı', key: 'lineThickness'
+            }, {
+              label: 'Denizin Rengi', key: 'seaColor'
+            }, {
+              label: 'Ayın Durumu', key: 'moonPhase'
+            }, {
+              label: 'Akıntı Durumu', key: 'currentStatus'
+            }].map(({ label, key }, idx) => (
+              <View key={idx} style={styles.inputGroup}>
+                <Text style={styles.label}>{label}</Text>
+                <TouchableOpacity
+                  style={styles.selectBox}
+                  onPress={() => fetchLookupData(key, val => updateField(key, val))}
+                >
+                  <Text>{record[key] || 'Seçiniz...'}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <ModernButton label="Değişiklikleri Kaydet" onPress={handleUpdate} />
+
+            <Modal visible={lookupModalVisible} animationType="slide">
+              <View style={{ flex: 1, padding: 20 }}>
+                <Text style={styles.title}>{activeLookupKey} Seçimi</Text>
+                {loadingLookup ? <ActivityIndicator size="large" /> : (
+                  <FlatList
+                    data={lookupOptions}
+                    keyExtractor={(item, index) => index.toString()}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity onPress={() => { activeSetter(item); setLookupModalVisible(false); }} style={styles.listItem}>
+                        <Text>{item}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
                 )}
-              />
-            )}
-            <Button title="Kapat" onPress={() => setModalVisible(false)} />
-          </View>
-        </Modal>
+                <ModernButton label="Kapat" onPress={() => setLookupModalVisible(false)} />
+              </View>
+            </Modal>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Lokasyon</Text>
-          <TouchableOpacity
-            style={styles.selectBox}
-            onPress={() => navigation.navigate('MapPickerScreen', {
-              onLocationSelected: (coords) => {
-                const formatted = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
-                updateField('location', formatted);
-              },
-            })}
-          >
-            <Text>{record.location || 'Konum seçin...'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {[{
-          label: 'Boy (cm)', key: 'length'
-        }, {
-          label: 'Ağırlık (gr)', key: 'weight'
-        }, {
-          label: 'Su Sıcaklığı', key: 'waterTemp'
-        }].map(({ label, key }, idx) => (
-          <View key={idx} style={styles.inputGroup}>
-            <Text style={styles.label}>{label}</Text>
-            <TextInput
-              style={styles.input}
-              value={record[key] || ''}
-              onChangeText={(val) => updateField(key, val)}
-            />
-          </View>
-        ))}
-
-        {[{
-          label: 'Kamış Tipi', key: 'rodType'
-        }, {
-          label: 'Makine Tipi', key: 'reelType'
-        }, {
-          label: 'Misina Kalınlığı', key: 'lineThickness'
-        }, {
-          label: 'Denizin Rengi', key: 'seaColor'
-        }, {
-          label: 'Ayın Durumu', key: 'moonPhase'
-        }, {
-          label: 'Akıntı Durumu', key: 'currentStatus'
-        }].map(({ label, key }, idx) => (
-          <View key={idx} style={styles.inputGroup}>
-            <Text style={styles.label}>{label}</Text>
-            <TouchableOpacity
-              style={styles.selectBox}
-              onPress={() => fetchLookupData(key, val => updateField(key, val))}
-            >
-              <Text>{record[key] || 'Seçiniz...'}</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-
-        <Button title="Değişiklikleri Kaydet" onPress={handleUpdate} />
-
-        <Modal visible={lookupModalVisible} animationType="slide">
-          <View style={{ flex: 1, padding: 20 }}>
-            <Text style={styles.title}>{activeLookupKey} Seçimi</Text>
-            {loadingLookup ? <ActivityIndicator size="large" /> : (
-              <FlatList
-                data={lookupOptions}
-                keyExtractor={(item, index) => index.toString()}
-                renderItem={({ item }) => (
-                  <TouchableOpacity onPress={() => { activeSetter(item); setLookupModalVisible(false); }} style={styles.listItem}>
-                    <Text>{item}</Text>
-                  </TouchableOpacity>
-                )}
-              />
-            )}
-            <Button title="Kapat" onPress={() => setLookupModalVisible(false)} />
-          </View>
-        </Modal>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <Modal visible={speciesModalVisible} animationType="slide">
+              <View style={{ flex: 1, padding: 20 }}>
+                <Text style={styles.title}>Balık Türü Seçimi</Text>
+                <FlatList
+                  data={fishSpecies}
+                  keyExtractor={(item) => item.value}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => { updateField('species', item.value); updateField('speciesLabel', item.label); setSpeciesModalVisible(false); }} style={styles.listItem}>
+                      <Text>{item.label}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+                <ModernButton label="Kapat" onPress={() => setSpeciesModalVisible(false)} />
+              </View>
+            </Modal>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  container: { flexGrow: 1, padding: 20, paddingTop: 80 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#fff' },
   inputGroup: { marginBottom: 15 },
-  label: { marginBottom: 5, fontWeight: 'bold' },
-  input: { borderWidth: 1, padding: 10, borderRadius: 5 },
+  label: { marginBottom: 5, fontWeight: 'bold', color: '#fff' },
+  input: { borderWidth: 1, padding: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' },
   selectBox: {
     borderWidth: 1,
     borderRadius: 5,
     padding: 12,
-    backgroundColor: '#f0f0f0'
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    color: '#fff'
   },
   listItem: {
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#eee'
   },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 999,
+  },
+  backText: {
+    color: '#fff',
+    fontSize: 18,
+  },
 });
-
-
-// screens/RecordList.js
-
-// (Güncellenmiş hali yukarıda zaten mevcut)

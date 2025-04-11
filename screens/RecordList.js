@@ -6,17 +6,19 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Button,
   TouchableOpacity,
   Modal,
   ActivityIndicator,
   ScrollView,
   Alert,
+  ImageBackground,
+  SafeAreaView
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, query, where, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import ModernButton from '../components/ModernButton';
 
 const COLUMN_HEADERS = [
   'Sil', 'Düzenle', 'Tür', 'Lokasyon', 'Tarih', 'Boy', 'Ağırlık', 'Kamış', 'Makine', 'Misina', 'Deniz Rengi', 'Ay Durumu', 'Su Sıcaklığı', 'Akıntı'
@@ -46,9 +48,9 @@ export default function RecordList() {
 
       if (startDate && endDate) {
         const start = new Date(startDate);
-start.setHours(0, 0, 0, 0);
-const end = new Date(endDate);
-end.setHours(23, 59, 59, 999);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
         constraints.push(where('timestamp', '>=', start));
         constraints.push(where('timestamp', '<=', end));
       }
@@ -140,71 +142,90 @@ end.setHours(23, 59, 59, 999);
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Kayıt Raporlama</Text>
+    <ImageBackground source={require('../assets/bg06.png')} style={{ flex: 1 }} resizeMode="cover">
+      <SafeAreaView style={{ flex: 1 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButtonContainer}>
+          <Text style={styles.backText}>← Geri</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.selectBox} onPress={() => setSpeciesModalVisible(true)}>
-        <Text>{selectedSpecies || 'Balık Türü Seçin'}</Text>
-      </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.container}>
+          <Text style={styles.header}>Kayıt Raporlama</Text>
 
-      <TouchableOpacity style={styles.selectBox} onPress={() => showPicker('start')}>
-        <Text>{startDate ? new Date(startDate).toLocaleDateString('tr-TR') : 'Başlangıç Tarihi Seç'}</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.selectBox} onPress={() => setSpeciesModalVisible(true)}>
+            <Text>{selectedSpecies || 'Balık Türü Seçin'}</Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity style={styles.selectBox} onPress={() => showPicker('end')}>
-        <Text>{endDate ? new Date(endDate).toLocaleDateString('tr-TR') : 'Bitiş Tarihi Seç'}</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.selectBox} onPress={() => showPicker('start')}>
+            <Text>{startDate ? new Date(startDate).toLocaleDateString('tr-TR') : 'Başlangıç Tarihi Seç'}</Text>
+          </TouchableOpacity>
 
-      {datePickerVisible.show && (
-        <DateTimePicker
-          value={new Date()}
-          mode="date"
-          display="default"
-          onChange={onDateChange}
-        />
-      )}
+          <TouchableOpacity style={styles.selectBox} onPress={() => showPicker('end')}>
+            <Text>{endDate ? new Date(endDate).toLocaleDateString('tr-TR') : 'Bitiş Tarihi Seç'}</Text>
+          </TouchableOpacity>
 
-      <Button title="Raporla" onPress={fetchRecords} disabled={loading} />
+          {datePickerVisible.show && (
+            <DateTimePicker
+              value={new Date()}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+            />
+          )}
 
-      {loading ? <ActivityIndicator size="large" /> : (
-        <ScrollView horizontal>
-          <View>
-            {renderHeader()}
-            {fishRecords.map(renderItemRow)}
-          </View>
+          <ModernButton label="Raporla" onPress={fetchRecords} disabled={loading} />
+
+          {loading ? <ActivityIndicator size="large" /> : (
+            <ScrollView horizontal>
+              <View>
+                {renderHeader()}
+                {fishRecords.map(renderItemRow)}
+              </View>
+            </ScrollView>
+          )}
+
+          <Modal visible={speciesModalVisible} animationType="slide">
+            <View style={{ flex: 1, padding: 20 }}>
+              <Text style={styles.header}>Balık Türü Seç</Text>
+              <FlatList
+                data={fishSpecies}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity onPress={() => { setSelectedSpecies(item.value); setSpeciesModalVisible(false); }} style={styles.listItem}>
+                    <Text>{item.label}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+              <ModernButton label="Kapat" onPress={() => setSpeciesModalVisible(false)} />
+            </View>
+          </Modal>
         </ScrollView>
-      )}
-
-      <Modal visible={speciesModalVisible} animationType="slide">
-        <View style={{ flex: 1, padding: 20 }}>
-          <Text style={styles.header}>Balık Türü Seç</Text>
-          <FlatList
-            data={fishSpecies}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => { setSelectedSpecies(item.value); setSpeciesModalVisible(false); }} style={styles.listItem}>
-                <Text>{item.label}</Text>
-              </TouchableOpacity>
-            )}
-          />
-          <Button title="Kapat" onPress={() => setSpeciesModalVisible(false)} />
-        </View>
-      </Modal>
-    </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    paddingTop: 80,
+  },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 999,
+  },
+  backText: {
+    color: '#fff',
+    fontSize: 18,
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
+    color: '#fff'
   },
   input: {
     borderWidth: 1,

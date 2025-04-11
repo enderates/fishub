@@ -112,6 +112,7 @@ export default function MapPickerScreen() {
       />
       {suggestions.length > 0 && (
         <FlatList
+          style={styles.suggestionList}
           data={suggestions}
           keyExtractor={(item) => item.place_id}
           renderItem={({ item }) => (
@@ -148,8 +149,19 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 5,
-    margin: 10,
+    marginHorizontal: 10,
+    marginTop: Platform.OS === 'ios' ? 60 : 40,
     backgroundColor: '#fff',
+    zIndex: 999,
+    elevation: 3,
+  },
+  suggestionList: {
+    maxHeight: 200,
+    marginHorizontal: 10,
+    backgroundColor: '#fff',
+    borderRadius: 5,
+    zIndex: 999,
+    elevation: 3,
   },
   suggestionItem: {
     padding: 10,
