@@ -27,18 +27,20 @@ export default function HomeScreen() {
           <Text style={styles.backText}>← Geri</Text>
         </TouchableOpacity>
 
-        <View style={styles.wrapper}>
-          <Text style={styles.title}>Hoş Geldin Fishub!</Text>
+        <View style={styles.centeredContent}>
+          <View style={styles.wrapper}>
+            <Text style={styles.title}>Hoş Geldin Fishub!</Text>
 
-          <ModernButton
-            label="Veri Giriş Ekranına Git"
-            onPress={() => navigation.navigate('FishEntry')}
-          />
+            <ModernButton
+              label="Veri Giriş Ekranına Git"
+              onPress={() => navigation.navigate('FishEntry')}
+            />
 
-          <ModernButton
-            label="Raporla / Sil / Değiştir"
-            onPress={() => navigation.navigate('RecordList')}
-          />
+            <ModernButton
+              label="Raporla / Sil / Değiştir"
+              onPress={() => navigation.navigate('RecordList')}
+            />
+          </View>
         </View>
       </SafeAreaView>
     </ImageBackground>
@@ -49,12 +51,17 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
+  centeredContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   wrapper: {
     backgroundColor: 'rgba(255,255,255,0.85)',
-    padding: 20,
-    borderRadius: 15,
+    padding: 30,
+    paddingBottom: 50,
+    borderRadius: 20,
     marginHorizontal: 30,
-    marginTop: 180,
     alignItems: 'center',
   },
   title: {

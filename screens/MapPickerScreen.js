@@ -25,6 +25,7 @@ export default function MapPickerScreen() {
 
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [initialRegion, setInitialRegion] = useState(null);
+  const [currentLocation, setCurrentLocation] = useState(null);
   const [address, setAddress] = useState('');
   const [suggestions, setSuggestions] = useState([]);
 
@@ -37,12 +38,14 @@ export default function MapPickerScreen() {
       }
 
       let location = await Location.getCurrentPositionAsync({});
-      setInitialRegion({
+      const regionData = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
-      });
+      };
+      setInitialRegion(regionData);
+      setCurrentLocation(regionData);
     })();
   }, []);
 
@@ -77,12 +80,13 @@ export default function MapPickerScreen() {
       );
       const data = await res.json();
       const { lat, lng } = data.result.geometry.location;
-      setInitialRegion({
+      const newRegion = {
         latitude: lat,
         longitude: lng,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
-      });
+      };
+      setInitialRegion(newRegion);
       setSelectedLocation({ latitude: lat, longitude: lng });
       setSuggestions([]);
       setAddress(data.result.formatted_address);
@@ -132,6 +136,14 @@ export default function MapPickerScreen() {
           initialRegion={initialRegion}
           region={initialRegion}
         >
+          {currentLocation && (
+            <Marker
+              coordinate={currentLocation}
+              title="Bulunduğun Konum"
+              description="Bu senin bulunduğun yer."
+              pinColor="blue"
+            />
+          )}
           {selectedLocation && <Marker coordinate={selectedLocation} />}
         </MapView>
       )}

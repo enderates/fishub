@@ -74,7 +74,7 @@ export default function FishEntryScreen() {
     try {
       const docRef = doc(db, 'lookup_tables', actualKey);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
+      if (docSnap.exists() && Array.isArray(docSnap.data().values)) {
         setLookupOptions(docSnap.data().values);
       } else {
         setLookupOptions([]);
@@ -209,20 +209,19 @@ export default function FishEntryScreen() {
               </TouchableOpacity>
             </View>
 
-            {Platform.OS !== 'web' && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Tarih & Saat</Text>
-                <View style={styles.selectBox}>
-                  <DateTimePicker
-                    value={dateTime}
-                    onChange={(event, selectedDate) => setDateTime(selectedDate || dateTime)}
-                    mode="datetime"
-                    textColor="#fff"
-                    style={{ width: '100%' }}
-                  />
-                </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Tarih & Saat</Text>
+              <View style={styles.selectBoxSmallDate}>
+                <DateTimePicker
+                  value={dateTime}
+                  onChange={(event, selectedDate) => setDateTime(selectedDate || dateTime)}
+                  mode="datetime"
+                  textColor="#fff"
+                  themeVariant="dark"
+                  style={{ flex: 1 }}
+                />
               </View>
-            )}
+            </View>
 
             {[{
               label: 'Boy (cm)', value: length, setter: setLength
@@ -308,75 +307,19 @@ export default function FishEntryScreen() {
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-    color: '#fff'
-  },
-  inputGroup: {
-    marginBottom: 15
-  },
-  label: {
-    marginBottom: 5,
-    fontWeight: 'bold',
-    color: '#fff'
-  },
-  input: {
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    color: '#fff'
-  },
-  selectBox: {
-    borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)'
-  },
-  selectBoxSmall: {
-    borderWidth: 1,
-    borderRadius: 5,
-    height: 40,
-    backgroundColor: 'rgba(255,255,255,0.2)'
-  },
-  selectBoxText: {
-    color: '#fff'
-  },
-  picker: {
-    height: 40,
-    color: '#fff',
-    backgroundColor: 'transparent',
-  },
-  pickerItem: {
-    fontSize: 14,
-    color: '#fff',
-    height: 44,
-  },
-  listItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee'
-  },
-  backButtonContainer: {
-    marginTop: Platform.OS === 'android' ? 50 : 60,
-    marginLeft: 20,
-    position: 'absolute',
-    zIndex: 999,
-  },
-  backText: {
-    color: '#fff',
-    fontSize: 18,
-  },
+  background: { flex: 1, backgroundColor: '#000' },
+  container: { flexGrow: 1, padding: 20, justifyContent: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#fff' },
+  inputGroup: { marginBottom: 15 },
+  label: { marginBottom: 5, fontWeight: 'bold', color: '#fff' },
+  input: { borderWidth: 1, padding: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' },
+  selectBox: { borderWidth: 1, borderRadius: 5, padding: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
+  selectBoxSmall: { borderWidth: 1, borderRadius: 5, height: 40, backgroundColor: 'rgba(255,255,255,0.2)' },
+  selectBoxSmallDate: { borderWidth: 1, borderRadius: 5, height: 40, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center' },
+  selectBoxText: { color: '#fff' },
+  picker: { height: 40, color: '#fff', backgroundColor: 'transparent' },
+  pickerItem: { fontSize: 14, color: '#fff', height: 44 },
+  listItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  backButtonContainer: { marginTop: Platform.OS === 'android' ? 50 : 60, marginLeft: 20, position: 'absolute', zIndex: 999 },
+  backText: { color: '#fff', fontSize: 18 },
 });

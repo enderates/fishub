@@ -118,11 +118,11 @@ export default function RecordList() {
       </View>
       <View style={styles.actionCellLeftAlign}>
         <TouchableOpacity onPress={() => navigation.navigate('EditFish', { id: item.id })}>
-          <Text style={{ color: 'blue' }}>Düzenle</Text>
+          <Text style={{ color: 'green' }}>Düzenle</Text>
         </TouchableOpacity>
       </View>
       {[item.speciesLabel, item.location, new Date(item.dateTime).toLocaleString('tr-TR'), item.length, item.weight, item.rodType, item.reelType, item.lineThickness, item.seaColor, item.moonPhase, item.waterTemp, item.currentStatus].map((value, idx) => (
-        <View key={idx} style={styles.cell}><Text>{value}</Text></View>
+        <View key={idx} style={styles.cell}><Text style={styles.cellText}>{value}</Text></View>
       ))}
     </View>
   );
@@ -173,6 +173,8 @@ export default function RecordList() {
           )}
 
           <ModernButton label="Raporla" onPress={fetchRecords} disabled={loading} />
+
+          <View style={{ marginVertical: 15 }} />
 
           {loading ? <ActivityIndicator size="large" /> : (
             <ScrollView horizontal>
@@ -261,6 +263,9 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRightWidth: 1,
     borderColor: '#ddd',
+  },
+  cellText: {
+    color: '#fff',
   },
   actionCellLeftAlign: {
     width: 130,

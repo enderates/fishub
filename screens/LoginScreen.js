@@ -36,31 +36,33 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.backText}>← Geri</Text>
         </TouchableOpacity>
 
-        <View style={styles.inner}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#444"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#444"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+        <View style={styles.centeredContent}>
+          <View style={styles.inner}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#444"
+              value={email}
+              onChangeText={setEmail}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#444"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
 
-          <ModernButton label="Giriş Yap" onPress={handleLogin} />
+            <ModernButton label="Giriş Yap" onPress={handleLogin} />
 
-          <Text style={styles.link} onPress={() => navigation.navigate('Register')}>
-            Hesabın yok mu? Kayıt Ol
-          </Text>
-          <Text style={styles.link} onPress={() => navigation.navigate('ForgotPassword')}>
-            Şifreni mi unuttun?
-          </Text>
+            <Text style={styles.link} onPress={() => navigation.navigate('Register')}>
+              Hesabın yok mu? Kayıt Ol
+            </Text>
+            <Text style={styles.link} onPress={() => navigation.navigate('ForgotPassword')}>
+              Şifreni mi unuttun?
+            </Text>
+          </View>
         </View>
       </SafeAreaView>
     </ImageBackground>
@@ -70,14 +72,19 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
+  },
+  centeredContent: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   inner: {
     backgroundColor: 'rgba(255,255,255,0.85)',
-    margin: 20,
-    padding: 25,
-    borderRadius: 15,
-    marginTop: 80,
+    padding: 30,
+    paddingBottom: 50,
+    borderRadius: 20,
+    marginHorizontal: 30,
+    alignItems: 'center',
   },
   input: {
     borderWidth: 1,
@@ -86,6 +93,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
     backgroundColor: '#fff',
+    width: 250,
   },
   link: {
     color: '#1e88e5',
