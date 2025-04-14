@@ -48,7 +48,10 @@ export default function EditFishScreen() {
     lineThickness: 'lineThicknessOptions',
     seaColor: 'seaColors',
     moonPhase: 'moonPhases',
-    currentStatus: 'currentStatuses'
+    currentStatus: 'currentStatuses',
+    baitType: 'baitTypes',
+    baitColor: 'baitColors',
+    baitWeight: 'baitWeights'
   };
 
   const fetchLookupData = async (key, setter) => {
@@ -185,6 +188,12 @@ export default function EditFishScreen() {
               label: 'Ayın Durumu', key: 'moonPhase'
             }, {
               label: 'Akıntı Durumu', key: 'currentStatus'
+            }, {
+              label: 'Yem Tipi', key: 'baitType'
+            }, {
+              label: 'Yem Rengi', key: 'baitColor'
+            }, {
+              label: 'Yem Ağırlığı', key: 'baitWeight'
             }].map(({ label, key }, idx) => (
               <View key={idx} style={styles.inputGroup}>
                 <Text style={styles.label}>{label}</Text>

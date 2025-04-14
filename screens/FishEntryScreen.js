@@ -31,6 +31,10 @@ if (Platform.OS !== 'web') {
 export default function FishEntryScreen() {
   const navigation = useNavigation();
 
+  const [baitType, setBaitType] = useState('');
+  const [baitColor, setBaitColor] = useState('');
+  const [baitWeight, setBaitWeight] = useState('');
+
   const [length, setLength] = useState('');
   const [weight, setWeight] = useState('');
   const [rodType, setRodType] = useState('');
@@ -51,6 +55,11 @@ export default function FishEntryScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const lookupKeys = {
+
+    baitType: 'baitTypes',
+    baitColor: 'baitColors',
+    baitWeight: 'baitWeights',
+
     rodType: 'rodTypes',
     reelType: 'reelTypes',
     lineThickness: 'lineThicknessOptions',
@@ -125,6 +134,9 @@ export default function FishEntryScreen() {
       await addDoc(collection(db, "fish_entries"), {
         species: selectedSpecies,
         speciesLabel: selectedLabel,
+        baitType,
+        baitColor,
+        baitWeight,
         length,
         weight,
         rodType,
@@ -142,6 +154,9 @@ export default function FishEntryScreen() {
       showAlert("Başarılı", "Kayıt başarıyla eklendi.");
       setSelectedSpecies('');
       setSelectedLabel('');
+      setBaitType('');
+      setBaitColor('');
+      setBaitWeight('');
       setLength('');
       setWeight('');
       setRodType('');
@@ -248,26 +263,25 @@ export default function FishEntryScreen() {
               </View>
             ))}
 
-            {[{
-              label: 'Kamış Tipi', value: rodType, setter: setRodType, key: 'rodType'
-            }, {
-              label: 'Makine Tipi', value: reelType, setter: setReelType, key: 'reelType'
-            }, {
-              label: 'Misina Kalınlığı', value: lineThickness, setter: setLineThickness, key: 'lineThickness'
-            }, {
-              label: 'Denizin Rengi', value: seaColor, setter: setSeaColor, key: 'seaColor'
-            }, {
-              label: 'Ayın Durumu', value: moonPhase, setter: setMoonPhase, key: 'moonPhase'
-            }, {
-              label: 'Akıntı Durumu', value: currentStatus, setter: setCurrentStatus, key: 'currentStatus'
-            }].map(({ label, value, setter, key }, index) => (
-              <View key={index} style={styles.inputGroup}>
-                <Text style={styles.label}>{label}</Text>
-                <TouchableOpacity style={styles.selectBox} onPress={() => fetchLookupData(key, setter)}>
-                  <Text style={styles.selectBoxText}>{value || 'Seçiniz...'}</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+{[
+  { label: 'Yem Tipi', value: baitType, setter: setBaitType, key: 'baitType' },
+  { label: 'Yem Rengi', value: baitColor, setter: setBaitColor, key: 'baitColor' },
+  { label: 'Yem Ağırlığı', value: baitWeight, setter: setBaitWeight, key: 'baitWeight' },
+  { label: 'Kamış Tipi', value: rodType, setter: setRodType, key: 'rodType' },
+  { label: 'Makine Tipi', value: reelType, setter: setReelType, key: 'reelType' },
+  { label: 'Misina Kalınlığı', value: lineThickness, setter: setLineThickness, key: 'lineThickness' },
+  { label: 'Denizin Rengi', value: seaColor, setter: setSeaColor, key: 'seaColor' },
+  { label: 'Ayın Durumu', value: moonPhase, setter: setMoonPhase, key: 'moonPhase' },
+  { label: 'Akıntı Durumu', value: currentStatus, setter: setCurrentStatus, key: 'currentStatus' }
+  
+].map(({ label, value, setter, key }, index) => (
+  <View key={index} style={styles.inputGroup}>
+    <Text style={styles.label}>{label}</Text>
+    <TouchableOpacity style={styles.selectBox} onPress={() => fetchLookupData(key, setter)}>
+      <Text style={styles.selectBoxText}>{value || 'Seçiniz...'}</Text>
+    </TouchableOpacity>
+  </View>
+))}
 
             <ModernButton label="Kaydet" onPress={handleSave} />
 

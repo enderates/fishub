@@ -21,7 +21,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ModernButton from '../components/ModernButton';
 
 const COLUMN_HEADERS = [
-  'Sil', 'Düzenle', 'Tür', 'Lokasyon', 'Tarih', 'Boy', 'Ağırlık', 'Kamış', 'Makine', 'Misina', 'Deniz Rengi', 'Ay Durumu', 'Su Sıcaklığı', 'Akıntı'
+  'Sil', 'Düzenle', 'Tür', 'Lokasyon', 'Tarih', 'Boy', 'Ağırlık', 'Kamış', 'Yem Tipi', 'Yem Rengi', 'Yem Ağırlığı', 'Makine', 'Misina', 'Deniz Rengi', 'Ay Durumu', 'Su Sıcaklığı', 'Akıntı'
 ];
 
 export default function RecordList() {
@@ -31,7 +31,6 @@ export default function RecordList() {
   const [selectedSpecies, setSelectedSpecies] = useState('');
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-
   const [fishSpecies, setFishSpecies] = useState([]);
   const [speciesModalVisible, setSpeciesModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState({ show: false, type: null });
@@ -121,7 +120,7 @@ export default function RecordList() {
           <Text style={{ color: 'green' }}>Düzenle</Text>
         </TouchableOpacity>
       </View>
-      {[item.speciesLabel, item.location, new Date(item.dateTime).toLocaleString('tr-TR'), item.length, item.weight, item.rodType, item.reelType, item.lineThickness, item.seaColor, item.moonPhase, item.waterTemp, item.currentStatus].map((value, idx) => (
+      {[item.speciesLabel, item.location, new Date(item.dateTime).toLocaleString('tr-TR'), item.length, item.weight, item.rodType, item.reelType, item.lineThickness, item.seaColor, item.moonPhase, item.waterTemp, item.currentStatus, item.baitType, item.baitColor, item.baitWeight].map((value, idx) => (
         <View key={idx} style={styles.cell}><Text style={styles.cellText}>{value}</Text></View>
       ))}
     </View>
