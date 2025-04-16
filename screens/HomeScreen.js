@@ -31,15 +31,21 @@ export default function HomeScreen() {
           <View style={styles.wrapper}>
             <Text style={styles.title}>Hoş Geldin Fishub!</Text>
 
-            <ModernButton
-              label="Veri Giriş Ekranına Git"
-              onPress={() => navigation.navigate('FishEntry')}
-            />
+            <View style={styles.buttonContainer}>
+              <ModernButton
+                label="Veri Giriş Ekranına Git"
+                onPress={() => navigation.navigate('FishEntry')}
+                style={styles.customButton}
+              />
+            </View>
 
-            <ModernButton
-              label="Raporla / Sil / Değiştir"
-              onPress={() => navigation.navigate('RecordList')}
-            />
+            <View style={styles.buttonContainer}>
+              <ModernButton
+                label="Raporla / Sil / Değiştir"
+                onPress={() => navigation.navigate('RecordList')}
+                style={styles.customButton}
+              />
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -80,5 +86,17 @@ const styles = StyleSheet.create({
   backText: {
     color: '#fff',
     fontSize: 18,
+  },
+  buttonContainer: {
+    alignItems: 'center',
+    marginVertical: 5,
+  },
+  customButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    marginTop: 10,
+    width: 'auto',
+    alignSelf: 'center',
   },
 });

@@ -54,12 +54,18 @@ export default function LoginScreen({ navigation }) {
               onChangeText={setPassword}
             />
 
-            <ModernButton label="Giriş Yap" onPress={handleLogin} />
+            <View style={styles.buttonContainer}>
+              <ModernButton 
+                label="Giriş Yap" 
+                onPress={handleLogin} 
+                style={styles.loginButton}
+              />
+            </View>
 
-            <Text style={styles.link} onPress={() => navigation.navigate('Register')}>
+            <Text style={styles.link} numberOfLines={1} onPress={() => navigation.navigate('Register')}>
               Hesabın yok mu? Kayıt Ol
             </Text>
-            <Text style={styles.link} onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text style={styles.link} numberOfLines={1} onPress={() => navigation.navigate('ForgotPassword')}>
               Şifreni mi unuttun?
             </Text>
           </View>
@@ -100,6 +106,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
     fontWeight: '500',
+    width: 250,
+    fontSize: 15,
   },
   backButtonContainer: {
     marginTop: Platform.OS === 'android' ? 50 : 60,
@@ -110,5 +118,15 @@ const styles = StyleSheet.create({
   backText: {
     color: '#fff',
     fontSize: 18,
+  },
+  buttonContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+    width: '100%',
+  },
+  loginButton: {
+    width: 'auto',
+    paddingHorizontal: 30,
+    alignSelf: 'center',
   },
 });

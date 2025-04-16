@@ -1,10 +1,9 @@
-// screens/FishEntryScreen.js
+// screens/BilibiliScreen.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   ActivityIndicator,
   Platform,
@@ -15,7 +14,8 @@ import {
   FlatList,
   Modal,
   ImageBackground,
-  SafeAreaView
+  SafeAreaView,
+  Pressable
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebaseConfig';
@@ -28,13 +28,137 @@ if (Platform.OS !== 'web') {
   DateTimePicker = require('@react-native-community/datetimepicker').default;
 }
 
-export default function FishEntryScreen() {
+const NumberPicker = memo(({ 
+  value,
+  modalVisible,
+  onClose,
+  onValueChange,
+  min = 0,
+  max,
+  step = 1,
+  position 
+}) => {
+  const [tempValue, setTempValue] = useState(value || min);
+
+  const handlePickerPress = (e) => {
+    e.stopPropagation();
+  };
+
+  if (!modalVisible) return null;
+
+  return (
+    <Modal
+      visible={modalVisible}
+      transparent={true}
+      animationType="fade"
+    >
+      <TouchableOpacity 
+        style={styles.modalBackdrop}
+        activeOpacity={1} 
+        onPress={() => {
+          onValueChange(tempValue);
+          onClose();
+        }}
+      >
+        <TouchableOpacity 
+          activeOpacity={1}
+          onPress={handlePickerPress}
+          style={[
+            styles.pickerContainer,
+            position && {
+              position: 'absolute',
+              top: position.y,
+              left: position.x,
+            }
+          ]}
+        >
+          <Picker
+            selectedValue={tempValue.toString()}
+            onValueChange={(val) => {
+              setTempValue(Number(val));
+            }}
+            style={styles.picker}
+          >
+            {Array.from(
+              { length: Math.floor((max - min) / step) + 1 },
+              (_, i) => {
+                const val = min + (i * step);
+                return (
+                  <Picker.Item
+                    key={val.toString()}
+                    label={val.toString()}
+                    value={val.toString()}
+                    color="#fff"
+                  />
+                );
+              }
+            )}
+          </Picker>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+});
+
+const FormField = ({ field, value, onValueChange }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [pickerPosition, setPickerPosition] = useState(null);
+  const inputRef = useRef(null);
+
+  const handlePress = () => {
+    if (inputRef.current) {
+      inputRef.current.measureInWindow((x, y, width, height) => {
+        const PICKER_WIDTH = 150;
+        const PICKER_HEIGHT = 160;
+
+        const elementCenterX = x + (width / 2);
+        const elementCenterY = y + (height / 2);
+
+        const pickerX = elementCenterX - (PICKER_WIDTH / 2);
+        const pickerY = elementCenterY - (PICKER_HEIGHT / 2);
+
+        setPickerPosition({
+          x: pickerX,
+          y: pickerY
+        });
+        setModalVisible(true);
+      });
+    }
+  };
+
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{field.label}</Text>
+      <TouchableOpacity 
+        ref={inputRef}
+        style={styles.selectBox}
+        onPress={handlePress}
+      >
+        <Text style={styles.selectBoxText}>
+          {value ? `${value} ${field.unit}` : `${field.label} seçin...`}
+        </Text>
+      </TouchableOpacity>
+
+      <NumberPicker
+        value={value}
+        modalVisible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onValueChange={onValueChange}
+        min={field.min}
+        max={field.max}
+        step={field.step}
+        position={pickerPosition}
+      />
+    </View>
+  );
+};
+
+export default function BilibiliScreen() {
   const navigation = useNavigation();
 
   const [baitType, setBaitType] = useState('');
   const [baitColor, setBaitColor] = useState('');
   const [baitWeight, setBaitWeight] = useState('');
-
   const [length, setLength] = useState('');
   const [weight, setWeight] = useState('');
   const [rodType, setRodType] = useState('');
@@ -55,11 +179,9 @@ export default function FishEntryScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const lookupKeys = {
-
     baitType: 'baitTypes',
     baitColor: 'baitColors',
     baitWeight: 'baitWeights',
-
     rodType: 'rodTypes',
     reelType: 'reelTypes',
     lineThickness: 'lineThicknessOptions',
@@ -73,6 +195,50 @@ export default function FishEntryScreen() {
   const [activeSetter, setActiveSetter] = useState(null);
   const [lookupModalVisible, setLookupModalVisible] = useState(false);
   const [loadingLookup, setLoadingLookup] = useState(false);
+
+  const [lengthModalVisible, setLengthModalVisible] = useState(false);
+  const [weightModalVisible, setWeightModalVisible] = useState(false);
+  const [waterTempModalVisible, setWaterTempModalVisible] = useState(false);
+
+  const [activeField, setActiveField] = useState(null);
+  const [formData, setFormData] = useState({});
+
+  console.log('Active Field:', activeField);
+
+  const FORM_FIELDS = useMemo(() => [
+    {
+      id: 'length',
+      label: 'Boy',
+      min: 0,
+      max: 300,
+      step: 1,
+      unit: 'cm'
+    },
+    {
+      id: 'weight',
+      label: 'Ağırlık',
+      min: 0,
+      max: 50000,
+      step: 10,
+      unit: 'gr'
+    },
+    {
+      id: 'waterTemp',
+      label: 'Su Sıcaklığı',
+      min: 0,
+      max: 40,
+      step: 0.5,
+      unit: '°C'
+    }
+  ], []);
+
+  const handleFieldChange = (fieldId, value) => {
+    console.log('Field değeri değişti:', { fieldId, value });
+    setFormData(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+  };
 
   const fetchLookupData = async (key, setter) => {
     const actualKey = lookupKeys[key];
@@ -147,8 +313,7 @@ export default function FishEntryScreen() {
         waterTemp,
         currentStatus,
         location,
-        dateTime: combinedDateTime.toString(),
-        timestamp: new Date(),
+        timestamp: combinedDateTime
       });
 
       showAlert("Başarılı", "Kayıt başarıyla eklendi.");
@@ -208,7 +373,13 @@ export default function FishEntryScreen() {
                     )}
                   />
                 )}
-                <ModernButton label="Kapat" onPress={() => setModalVisible(false)} />
+                <View style={styles.buttonContainer}>
+                  <ModernButton 
+                    label="Kapat" 
+                    onPress={() => setModalVisible(false)} 
+                    style={styles.customButton}
+                  />
+                </View>
               </View>
             </Modal>
 
@@ -238,52 +409,49 @@ export default function FishEntryScreen() {
               </View>
             </View>
 
+            {FORM_FIELDS.map((field) => (
+              <FormField
+                key={field.id}
+                field={field}
+                value={formData[field.id]}
+                onValueChange={(value) => handleFieldChange(field.id, value)}
+              />
+            ))}
+
             {[{
-              label: 'Boy (cm)', value: length, setter: setLength
+              label: 'Yem Tipi', value: baitType, setter: setBaitType, key: 'baitType'
             }, {
-              label: 'Ağırlık (gr)', value: weight, setter: setWeight
+              label: 'Yem Rengi', value: baitColor, setter: setBaitColor, key: 'baitColor'
             }, {
-              label: 'Su Sıcaklığı', value: waterTemp, setter: setWaterTemp
-            }].map(({ label, value, setter }, index) => (
+              label: 'Yem Ağırlığı', value: baitWeight, setter: setBaitWeight, key: 'baitWeight'
+            }, {
+              label: 'Kamış Tipi', value: rodType, setter: setRodType, key: 'rodType'
+            }, {
+              label: 'Makine Tipi', value: reelType, setter: setReelType, key: 'reelType'
+            }, {
+              label: 'Misina Kalınlığı', value: lineThickness, setter: setLineThickness, key: 'lineThickness'
+            }, {
+              label: 'Denizin Rengi', value: seaColor, setter: setSeaColor, key: 'seaColor'
+            }, {
+              label: 'Ayın Durumu', value: moonPhase, setter: setMoonPhase, key: 'moonPhase'
+            }, {
+              label: 'Akıntı Durumu', value: currentStatus, setter: setCurrentStatus, key: 'currentStatus'
+            }].map(({ label, value, setter, key }, index) => (
               <View key={index} style={styles.inputGroup}>
                 <Text style={styles.label}>{label}</Text>
-                <View style={styles.selectBoxSmall}>
-                  <Picker
-                    selectedValue={value}
-                    onValueChange={(val) => setter(val)}
-                    itemStyle={styles.pickerItem}
-                    style={styles.picker}
-                    dropdownIconColor="#fff"
-                  >
-                    {[...Array(301).keys()].map(n => (
-                      <Picker.Item key={n} label={`${n}`} value={`${n}`} />
-                    ))}
-                  </Picker>
-                </View>
+                <TouchableOpacity style={styles.selectBox} onPress={() => fetchLookupData(key, setter)}>
+                  <Text style={styles.selectBoxText}>{value || 'Seçiniz...'}</Text>
+                </TouchableOpacity>
               </View>
             ))}
 
-{[
-  { label: 'Yem Tipi', value: baitType, setter: setBaitType, key: 'baitType' },
-  { label: 'Yem Rengi', value: baitColor, setter: setBaitColor, key: 'baitColor' },
-  { label: 'Yem Ağırlığı', value: baitWeight, setter: setBaitWeight, key: 'baitWeight' },
-  { label: 'Kamış Tipi', value: rodType, setter: setRodType, key: 'rodType' },
-  { label: 'Makine Tipi', value: reelType, setter: setReelType, key: 'reelType' },
-  { label: 'Misina Kalınlığı', value: lineThickness, setter: setLineThickness, key: 'lineThickness' },
-  { label: 'Denizin Rengi', value: seaColor, setter: setSeaColor, key: 'seaColor' },
-  { label: 'Ayın Durumu', value: moonPhase, setter: setMoonPhase, key: 'moonPhase' },
-  { label: 'Akıntı Durumu', value: currentStatus, setter: setCurrentStatus, key: 'currentStatus' }
-  
-].map(({ label, value, setter, key }, index) => (
-  <View key={index} style={styles.inputGroup}>
-    <Text style={styles.label}>{label}</Text>
-    <TouchableOpacity style={styles.selectBox} onPress={() => fetchLookupData(key, setter)}>
-      <Text style={styles.selectBoxText}>{value || 'Seçiniz...'}</Text>
-    </TouchableOpacity>
-  </View>
-))}
-
-            <ModernButton label="Kaydet" onPress={handleSave} />
+            <View style={styles.buttonContainer}>
+              <ModernButton 
+                label="Kaydet" 
+                onPress={handleSave} 
+                style={styles.customButton}
+              />
+            </View>
 
             <Modal
               visible={lookupModalVisible}
@@ -310,7 +478,13 @@ export default function FishEntryScreen() {
                     )}
                   />
                 )}
-                <ModernButton label="Kapat" onPress={() => setLookupModalVisible(false)} />
+                <View style={styles.buttonContainer}>
+                  <ModernButton 
+                    label="Kapat" 
+                    onPress={() => setLookupModalVisible(false)} 
+                    style={styles.customButton}
+                  />
+                </View>
               </View>
             </Modal>
           </ScrollView>
@@ -327,13 +501,101 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 15 },
   label: { marginBottom: 5, fontWeight: 'bold', color: '#fff' },
   input: { borderWidth: 1, padding: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' },
-  selectBox: { borderWidth: 1, borderRadius: 5, padding: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
-  selectBoxSmall: { borderWidth: 1, borderRadius: 5, height: 40, backgroundColor: 'rgba(255,255,255,0.2)' },
+  selectBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  selectBoxSmall: {
+    backgroundColor: '#2c2c2c',
+    borderRadius: 10,
+    padding: 15,
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: '#3c3c3c',
+  },
   selectBoxSmallDate: { borderWidth: 1, borderRadius: 5, height: 40, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center' },
-  selectBoxText: { color: '#fff' },
-  picker: { height: 40, color: '#fff', backgroundColor: 'transparent' },
-  pickerItem: { fontSize: 14, color: '#fff', height: 44 },
+  selectBoxText: { color: '#fff', fontSize: 16 },
+  picker: { width: '100%', backgroundColor: 'transparent' },
+  pickerItem: { color: '#fff', fontSize: 24, ...Platform.select({
+    ios: {
+      height: 120,
+    },
+  }) },
   listItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
   backButtonContainer: { marginTop: Platform.OS === 'android' ? 50 : 60, marginLeft: 20, position: 'absolute', zIndex: 999 },
   backText: { color: '#fff', fontSize: 18 },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 340,
+    backgroundColor: 'rgba(28, 28, 30, 0.85)',
+    borderRadius: 14,
+    overflow: 'hidden',
+    backdropFilter: 'blur(20px)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 4,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  modalHeader: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#3c3c3c',
+    backgroundColor: '#252525',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  pickerContainer: {
+    backgroundColor: 'rgba(20, 20, 20, 0.9)',
+    borderRadius: 8,
+    width: 150,
+    height: 160,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  picker: {
+    width: '100%',
+    height: '100%',
+  },
+  buttonContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  
+  customButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    marginTop: 0,
+    width: 'auto', // İçeriğe göre genişlik
+    alignSelf: 'center',
+  },
 });

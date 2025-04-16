@@ -1,11 +1,14 @@
 // components/ModernButton.js
 
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 
-export default function ModernButton({ label, onPress }) {
+export default function ModernButton({ label, onPress, style, disabled }) {
   return (
-    <TouchableOpacity style={styles.button} onPress={onPress}>
+    <TouchableOpacity 
+      style={[styles.button, style]} 
+      onPress={onPress}
+      disabled={disabled}>
       <Text style={styles.label}>{label}</Text>
     </TouchableOpacity>
   );
@@ -14,11 +17,12 @@ export default function ModernButton({ label, onPress }) {
 const styles = StyleSheet.create({
   button: {
     backgroundColor: '#0288d1', // Deniz mavisi, göz alıcı
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 26,
     borderRadius: 30,
     alignItems: 'center',
     marginTop: 20,
+    width: 120, // Sabit genişlik
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -27,7 +31,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '600',
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
