@@ -1,6 +1,6 @@
 // screens/RecordList.js
 
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback, memo, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,8 @@ import {
   ImageBackground,
   SafeAreaView,
   Pressable,
-  Platform
+  Platform,
+  TextInput
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, query, where, getDocs, doc, getDoc, deleteDoc, orderBy } from 'firebase/firestore';
@@ -23,87 +24,86 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ModernButton from '../components/ModernButton';
 
 const TABLE_COLUMNS = [
-  { key: 'delete', header: 'Sil' },
-  { key: 'edit', header: 'Düzenle' },
-  { key: 'speciesLabel', header: 'Tür' },
-  { key: 'location', header: 'Lokasyon' },
-  { key: 'dateTime', header: 'Tarih' },
-  { key: 'length', header: 'Boy' },
-  { key: 'weight', header: 'Ağırlık' },
-  { key: 'rodType', header: 'Kamış' },
-  { key: 'baitType', header: 'Yem Tipi' },
-  { key: 'baitColor', header: 'Yem Rengi' },
-  { key: 'baitWeight', header: 'Yem Ağırlığı' },
-  { key: 'reelType', header: 'Makine' },
-  { key: 'lineThickness', header: 'Misina' },
-  { key: 'seaColor', header: 'Deniz Rengi' },
-  { key: 'moonPhase', header: 'Ay Durumu' },
-  { key: 'waterTemp', header: 'Su Sıcaklığı' },
-  { key: 'currentStatus', header: 'Akıntı' }
+  { key: 'delete', header: 'Sil', width: 80 },
+  { key: 'edit', header: 'Düzenle', width: 80 },
+  { key: 'speciesLabel', header: 'Tür', width: 150 },
+  { key: 'location', header: 'Lokasyon', width: 200 },
+  { key: 'dateTime', header: 'Tarih', width: 150 },
+  { key: 'length', header: 'Boy', width: 80 },
+  { key: 'weight', header: 'Ağırlık', width: 80 },
+  { key: 'rodType', header: 'Kamış', width: 120 },
+  { key: 'baitType', header: 'Yem Tipi', width: 120 },
+  { key: 'baitColor', header: 'Yem Rengi', width: 120 },
+  { key: 'baitWeight', header: 'Yem Ağırlığı', width: 100 },
+  { key: 'reelType', header: 'Makine', width: 120 },
+  { key: 'lineThickness', header: 'Misina', width: 100 },
+  { key: 'seaColor', header: 'Deniz Rengi', width: 120 },
+  { key: 'moonPhase', header: 'Ay Durumu', width: 120 },
+  { key: 'waterTemp', header: 'Su Sıcaklığı', width: 100 },
+  { key: 'currentStatus', header: 'Akıntı', width: 100 }
 ];
 
 const SpeciesPickerModal = memo(({ visible, onClose, fishSpecies, onSelect }) => {
-  const allSpeciesOption = { label: 'Tüm Balık Türleri', value: '' };
-  const allData = [allSpeciesOption, ...fishSpecies];
+  const [searchText, setSearchText] = useState('');
+  
+  const filteredSpecies = useMemo(() => {
+    if (!searchText) return fishSpecies;
+    return fishSpecies.filter(item => 
+      item.label.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [searchText, fishSpecies]);
 
   return (
     <Modal
       visible={visible}
-      transparent={true}
       animationType="fade"
-      onRequestClose={onClose}
+      transparent={false}
+      presentationStyle="fullScreen"
     >
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
-          <View style={styles.modalHandle} />
-          
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#1c1c1e' }}>
+        <View style={{ flex: 1 }}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity 
-              style={styles.modalHeaderButton} 
-              onPress={onClose}
-            >
+            <TouchableOpacity onPress={onClose}>
               <Text style={styles.modalHeaderButtonText}>İptal</Text>
             </TouchableOpacity>
-            
             <Text style={styles.modalTitle}>Balık Türü Seç</Text>
-            
-            <TouchableOpacity 
-              style={styles.modalHeaderButton} 
-              onPress={onClose}
-            >
-              <Text style={[styles.modalHeaderButtonText, styles.modalHeaderButtonTextConfirm]}>
-                Tamam
-              </Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.modalHeaderButtonText}>Tamam</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.modalBody}>
-            <FlatList
-              data={allData}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  onPress={() => {
-                    onSelect(item.value);
-                    onClose();
-                  }} 
-                  style={[
-                    styles.modalListItem,
-                    item.value === '' && styles.modalListItemHighlight
-                  ]}
-                >
-                  <Text style={[
-                    styles.modalListItemText,
-                    item.value === '' && styles.modalListItemTextHighlight
-                  ]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              )}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Balık türü ara..."
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              value={searchText}
+              onChangeText={setSearchText}
+              autoCorrect={false}
+              autoCapitalize="none"
             />
           </View>
-        </Pressable>
-      </Pressable>
+
+          <FlatList
+            data={filteredSpecies}
+            keyExtractor={(item) => item.value}
+            keyboardShouldPersistTaps="always"
+            style={{ flex: 1, backgroundColor: '#1c1c1e' }}
+            renderItem={({ item }) => (
+              <TouchableOpacity 
+                onPress={() => {
+                  onSelect(item.value);
+                  onClose();
+                  setSearchText('');
+                }}
+                style={styles.modalListItem}
+              >
+                <Text style={styles.modalListItemText}>{item.label}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </SafeAreaView>
     </Modal>
   );
 });
@@ -129,11 +129,11 @@ const DatePickerModal = memo(({ visible, onClose, onConfirm, type, initialDate }
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
           
           <View style={styles.modalHeader}>
@@ -169,8 +169,8 @@ const DatePickerModal = memo(({ visible, onClose, onConfirm, type, initialDate }
               style={{ backgroundColor: 'transparent' }}
             />
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 });
@@ -183,6 +183,7 @@ export default function RecordList() {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [fishSpecies, setFishSpecies] = useState([]);
+  const [loadingSpecies, setLoadingSpecies] = useState(true);
   const [speciesModalVisible, setSpeciesModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState({ show: false, type: null });
 
@@ -239,10 +240,18 @@ export default function RecordList() {
 
   useEffect(() => {
     fetch('https://api.gbif.org/v1/species/search?taxon_key=204&limit=50')
-      .then(res => res.json())
+      .then(response => response.json())
       .then(data => {
-        const list = data.results.map(item => ({ label: item.canonicalName, value: item.canonicalName }));
+        const list = data.results.map(item => ({ 
+          label: item.canonicalName, 
+          value: item.canonicalName 
+        }));
         setFishSpecies(list);
+        setLoadingSpecies(false);
+      })
+      .catch(error => {
+        console.error('Balık türleri alınamadı:', error);
+        setLoadingSpecies(false);
       });
   }, []);
 
@@ -267,7 +276,7 @@ export default function RecordList() {
   const renderTableHeaders = () => (
     <View style={styles.headerRow}>
       {TABLE_COLUMNS.map((column, index) => (
-        <View key={index} style={styles.cell}>
+        <View key={index} style={[styles.cell, { width: column.width }]}>
           <Text style={styles.headerText}>{column.header}</Text>
         </View>
       ))}
@@ -276,67 +285,37 @@ export default function RecordList() {
 
   const renderTableRow = (item, index) => (
     <View style={[styles.dataRow, index % 2 === 1 && styles.alternateRow]}>
-      <View style={styles.cell}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => handleDelete(item.id)}
-        >
-          <Text style={styles.deleteText}>Sil</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.cell}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('EditFish', { id: item.id })}
-        >
-          <Text style={styles.editText}>Düzenle</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.speciesLabel}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.location}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.dateTime}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.length}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.weight}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.rodType}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.baitType}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.baitColor}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.baitWeight}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.reelType}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.lineThickness}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.seaColor}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.moonPhase}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.waterTemp}</Text>
-      </View>
-      <View style={styles.cell}>
-        <Text style={styles.cellText}>{item.currentStatus}</Text>
-      </View>
+      {TABLE_COLUMNS.map((column, colIndex) => (
+        <View key={colIndex} style={[styles.cell, { width: column.width }]}>
+          {column.key === 'delete' ? (
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => handleDelete(item.id)}
+            >
+              <Text style={styles.deleteText}>Sil</Text>
+            </TouchableOpacity>
+          ) : column.key === 'edit' ? (
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('EditFish', { id: item.id })}
+            >
+              <Text style={styles.editText}>Düzenle</Text>
+            </TouchableOpacity>
+          ) : column.key === 'dateTime' ? (
+            <Text style={styles.cellText}>
+              {formatDateTime(item.timestamp)}
+            </Text>
+          ) : (
+            <Text 
+              style={styles.cellText}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {item[column.key]}
+            </Text>
+          )}
+        </View>
+      ))}
     </View>
   );
 
@@ -360,10 +339,18 @@ export default function RecordList() {
     setDatePickerVisible({ show: false, type: null });
   };
 
-  // Tarih gösterimi için yardımcı fonksiyon
-  const formatDate = (date) => {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString('tr-TR');
+  // Tarih formatı için yeni bir yardımcı fonksiyon ekleyelim
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp.seconds * 1000);
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+
+    return `${day}.${month}.${year} - ${hours}:${minutes}`;
   };
 
   return (
@@ -390,7 +377,7 @@ export default function RecordList() {
             onPress={() => showPicker('start')}
           >
             <Text style={styles.selectBoxText}>
-              {startDate ? formatDate(startDate) : 'Başlangıç Tarihi Seç'}
+              {startDate ? formatDateTime(startDate) : 'Başlangıç Tarihi Seç'}
             </Text>
           </TouchableOpacity>
 
@@ -399,7 +386,7 @@ export default function RecordList() {
             onPress={() => showPicker('end')}
           >
             <Text style={styles.selectBoxText}>
-              {endDate ? formatDate(endDate) : 'Bitiş Tarihi Seç'}
+              {endDate ? formatDateTime(endDate) : 'Bitiş Tarihi Seç'}
             </Text>
           </TouchableOpacity>
 
@@ -434,7 +421,7 @@ export default function RecordList() {
           <SpeciesPickerModal 
             visible={speciesModalVisible}
             onClose={() => setSpeciesModalVisible(false)}
-            fishSpecies={fishSpecies}
+            fishSpecies={[{ label: 'Tüm Balık Türleri', value: '' }, ...fishSpecies]}
             onSelect={(value) => {
               setSelectedSpecies(value);
               setSpeciesModalVisible(false);
@@ -519,13 +506,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   cell: {
-    flex: 1,
-    minWidth: 120,
     padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
   },
   headerText: {
     color: 'rgba(0, 0, 0, 0.87)',
@@ -540,6 +526,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+    flexShrink: 1,
   },
   actionButton: {
     backgroundColor: '#fff',
@@ -593,30 +580,14 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    width: '90%',
-    maxWidth: 340,
-    backgroundColor: 'rgba(28, 28, 30, 0.85)',
-    borderRadius: 14,
-    overflow: 'hidden',
-    backdropFilter: 'blur(20px)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 4,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
+    backgroundColor: '#1c1c1e',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    maxHeight: '80%',
+    width: '100%',
   },
   modalHandle: {
     width: 36,
@@ -630,8 +601,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -641,7 +611,6 @@ const styles = StyleSheet.create({
   modalHeaderButtonText: {
     fontSize: 17,
     color: '#007AFF',
-    fontWeight: '600',
   },
   modalHeaderButtonTextConfirm: {
     color: '#0A84FF',
@@ -654,8 +623,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flex: 1,
   },
-  modalBody: {
-    maxHeight: '80%',
+  searchContainer: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  searchInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    color: '#fff',
+    fontSize: 16,
   },
   modalListItem: {
     padding: 16,

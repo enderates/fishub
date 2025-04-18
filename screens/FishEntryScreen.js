@@ -15,7 +15,8 @@ import {
   Modal,
   ImageBackground,
   SafeAreaView,
-  Pressable
+  Pressable,
+  TextInput
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebaseConfig';
@@ -50,7 +51,7 @@ const NumberPicker = memo(({
     <Modal
       visible={modalVisible}
       transparent={true}
-      animationType="fade"
+      animationType="none"
     >
       <TouchableOpacity 
         style={styles.modalBackdrop}
@@ -153,6 +154,71 @@ const FormField = ({ field, value, onValueChange }) => {
   );
 };
 
+const SpeciesPickerModal = memo(({ visible, onClose, fishSpecies, onSelect }) => {
+  const [searchText, setSearchText] = useState('');
+  
+  const filteredSpecies = useMemo(() => {
+    if (!searchText) return fishSpecies;
+    return fishSpecies.filter(item => 
+      item.label.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [searchText, fishSpecies]);
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent={false}
+      presentationStyle="fullScreen"
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#1c1c1e' }}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.modalHeaderButtonText}>İptal</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Balık Türü Seç</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.modalHeaderButtonText}>Tamam</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Balık türü ara..."
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              value={searchText}
+              onChangeText={setSearchText}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <FlatList
+            data={filteredSpecies}
+            keyExtractor={(item) => item.value}
+            keyboardShouldPersistTaps="always"
+            style={{ flex: 1, backgroundColor: '#1c1c1e' }}
+            renderItem={({ item }) => (
+              <TouchableOpacity 
+                onPress={() => {
+                  onSelect(item.value);
+                  onClose();
+                  setSearchText('');
+                }}
+                style={styles.modalListItem}
+              >
+                <Text style={styles.modalListItemText}>{item.label}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+});
+
 export default function BilibiliScreen() {
   const navigation = useNavigation();
 
@@ -177,6 +243,7 @@ export default function BilibiliScreen() {
   const [fishSpecies, setFishSpecies] = useState([]);
   const [loadingSpecies, setLoadingSpecies] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   const lookupKeys = {
     baitType: 'baitTypes',
@@ -287,59 +354,96 @@ export default function BilibiliScreen() {
   };
 
   const handleSave = async () => {
-    if (!selectedSpecies || !weight || !selectedLabel || !location) {
-      showAlert("Eksik Bilgi", "Zorunlu alanları doldurunuz.");
+    const requiredFields = [
+      { field: 'Balık Türü', value: selectedSpecies },
+      { field: 'Lokasyon', value: location },
+      { field: 'Ağırlık', value: formData.weight },
+      { field: 'Boy', value: formData.length }
+    ];
+
+    const missingFields = requiredFields.filter(item => !item.value);
+
+    if (missingFields.length > 0) {
+      Alert.alert(
+        "Eksik Alanlar",
+        missingFields.map(item => 
+          `• ${item.field}`
+        ).join('\n'),
+        [{ text: "Tamam", style: "default" }],
+        {
+          cancelable: true,
+          messageStyle: Platform.select({
+            android: {
+              textAlign: 'left',
+              fontSize: 16,
+            }
+          }),
+          containerStyle: Platform.select({
+            ios: {
+              backgroundColor: 'rgba(255, 140, 0, 0.1)',
+              borderRadius: 10,
+            }
+          })
+        }
+      );
       return;
     }
 
-    const combinedDateTime = Platform.OS === 'web'
-      ? new Date(`${webDate}T${webTime}`)
-      : dateTime;
-
     try {
-      await addDoc(collection(db, "fish_entries"), {
+      const fishData = {
         species: selectedSpecies,
         speciesLabel: selectedLabel,
-        baitType,
-        baitColor,
-        baitWeight,
-        length,
-        weight,
-        rodType,
-        reelType,
-        lineThickness,
-        seaColor,
-        moonPhase,
-        waterTemp,
-        currentStatus,
+        length: formData.length,
+        weight: formData.weight,
         location,
-        timestamp: combinedDateTime
-      });
+        timestamp: Platform.OS === 'web' ? new Date(`${webDate}T${webTime}`) : dateTime
+      };
+
+      // Opsiyonel alanları sadece değer varsa ekle
+      if (baitType) fishData.baitType = baitType;
+      if (baitColor) fishData.baitColor = baitColor;
+      if (baitWeight) fishData.baitWeight = baitWeight;
+      if (rodType) fishData.rodType = rodType;
+      if (reelType) fishData.reelType = reelType;
+      if (lineThickness) fishData.lineThickness = lineThickness;
+      if (seaColor) fishData.seaColor = seaColor;
+      if (moonPhase) fishData.moonPhase = moonPhase;
+      if (formData.waterTemp) fishData.waterTemp = formData.waterTemp;
+      if (currentStatus) fishData.currentStatus = currentStatus;
+
+      await addDoc(collection(db, "fish_entries"), fishData);
 
       showAlert("Başarılı", "Kayıt başarıyla eklendi.");
+      
+      // Form alanlarını temizle
       setSelectedSpecies('');
       setSelectedLabel('');
       setBaitType('');
       setBaitColor('');
       setBaitWeight('');
-      setLength('');
-      setWeight('');
+      setFormData({});
       setRodType('');
       setReelType('');
       setLineThickness('');
       setSeaColor('');
       setMoonPhase('');
-      setWaterTemp('');
       setCurrentStatus('');
       setLocation('');
       setDateTime(new Date());
       setWebDate('');
       setWebTime('');
     } catch (error) {
-      console.error("Firestore hata:", error);
-      showAlert("Hata", "Kayıt sırasında bir hata oluştu.");
+      console.error("Kayıt hatası:", error);
+      showAlert("Hata", "Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyiniz.");
     }
   };
+
+  const filteredSpecies = useMemo(() => {
+    if (!searchText) return fishSpecies;
+    return fishSpecies.filter(item => 
+      item.label.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [searchText, fishSpecies]);
 
   return (
     <ImageBackground source={require('../assets/bg06.png')} style={styles.background} resizeMode="cover">
@@ -359,29 +463,16 @@ export default function BilibiliScreen() {
               </TouchableOpacity>
             </View>
 
-            <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalVisible(false)}>
-              <View style={{ flex: 1, padding: 20 }}>
-                <Text style={styles.title}>Balık Türü Seçimi</Text>
-                {loadingSpecies ? <ActivityIndicator size="large" /> : (
-                  <FlatList
-                    data={fishSpecies}
-                    keyExtractor={(item) => item.value}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity onPress={() => { setSelectedSpecies(item.value); setSelectedLabel(item.label); setModalVisible(false); }} style={styles.listItem}>
-                        <Text>{item.label}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                )}
-                <View style={styles.buttonContainer}>
-                  <ModernButton 
-                    label="Kapat" 
-                    onPress={() => setModalVisible(false)} 
-                    style={styles.customButton}
-                  />
-                </View>
-              </View>
-            </Modal>
+            <SpeciesPickerModal
+              visible={modalVisible}
+              onClose={() => setModalVisible(false)}
+              fishSpecies={fishSpecies}
+              onSelect={(value) => {
+                setSelectedSpecies(value);
+                setSelectedLabel(fishSpecies.find(item => item.value === value)?.label || '');
+                setModalVisible(false);
+              }}
+            />
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Lokasyon</Text>
@@ -558,16 +649,44 @@ const styles = StyleSheet.create({
     }),
   },
   modalHeader: {
-    padding: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#3c3c3c',
-    backgroundColor: '#252525',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '600',
     color: '#fff',
     textAlign: 'center',
+    flex: 1,
+  },
+  modalHeaderButtonText: {
+    fontSize: 17,
+    color: '#007AFF',
+  },
+  modalListItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalListItemText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  searchContainer: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  searchInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    color: '#fff',
+    fontSize: 16,
   },
   modalBackdrop: {
     flex: 1,

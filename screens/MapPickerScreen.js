@@ -52,6 +52,11 @@ export default function MapPickerScreen() {
   const handleSelectLocation = (event) => {
     const coords = event.nativeEvent.coordinate;
     setSelectedLocation(coords);
+    setInitialRegion({
+      ...coords,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    });
   };
 
   const handleSearch = async (text) => {
@@ -134,7 +139,6 @@ export default function MapPickerScreen() {
           style={styles.map}
           onPress={handleSelectLocation}
           initialRegion={initialRegion}
-          region={initialRegion}
         >
           {currentLocation && (
             <Marker

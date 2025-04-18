@@ -15,7 +15,8 @@ import {
   Modal,
   ImageBackground,
   SafeAreaView,
-  Pressable
+  Pressable,
+  TextInput
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebaseConfig';
@@ -243,6 +244,72 @@ export default function EditFishScreen() {
       Alert.alert("Hata", "Güncelleme sırasında bir hata oluştu.");
     }
   };
+
+  // SpeciesPickerModal bileşenini güncelle
+  const SpeciesPickerModal = memo(({ visible, onClose, fishSpecies, onSelect }) => {
+    const [searchText, setSearchText] = useState('');
+    
+    const filteredSpecies = useMemo(() => {
+      if (!searchText) return fishSpecies;
+      return fishSpecies.filter(item => 
+        item.label.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }, [searchText, fishSpecies]);
+
+    return (
+      <Modal
+        visible={visible}
+        animationType="fade"
+        transparent={false}
+        presentationStyle="fullScreen"
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#1c1c1e' }}>
+          <View style={{ flex: 1 }}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={styles.modalHeaderButtonText}>İptal</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Balık Türü Seç</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={styles.modalHeaderButtonText}>Tamam</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Balık türü ara..."
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                value={searchText}
+                onChangeText={setSearchText}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <FlatList
+              data={filteredSpecies}
+              keyExtractor={(item) => item.value}
+              keyboardShouldPersistTaps="always"
+              style={{ flex: 1, backgroundColor: '#1c1c1e' }}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  onPress={() => {
+                    onSelect(item.value, item.label);
+                    onClose();
+                    setSearchText('');
+                  }}
+                  style={styles.modalListItem}
+                >
+                  <Text style={styles.modalListItemText}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  });
 
   // PickerModal komponenti
   const PickerModal = memo(({ 
@@ -555,35 +622,16 @@ export default function EditFishScreen() {
               />
             </View>
 
-            <Modal
+            <SpeciesPickerModal
               visible={modalVisible}
-              animationType="slide"
-              presentationStyle="pageSheet"
-              onRequestClose={() => setModalVisible(false)}
-            >
-              <View style={{ flex: 1, padding: 20 }}>
-                <Text style={styles.title}>Balık Türü Seçimi</Text>
-                {loadingSpecies ? <ActivityIndicator size="large" /> : (
-                  <FlatList
-                    data={fishSpecies}
-                    keyExtractor={(item) => item.value}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        onPress={() => {
-                          setSelectedSpecies(item.value);
-                          setSelectedLabel(item.label);
-                          setModalVisible(false);
-                        }}
-                        style={styles.listItem}
-                      >
-                        <Text>{item.label}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                )}
-                <ModernButton label="Kapat" onPress={() => setModalVisible(false)} />
-              </View>
-            </Modal>
+              onClose={() => setModalVisible(false)}
+              fishSpecies={fishSpecies}
+              onSelect={(value, label) => {
+                setSelectedSpecies(value);
+                setSelectedLabel(label);
+                setModalVisible(false);
+              }}
+            />
 
             <Modal
               visible={lookupModalVisible}
@@ -717,5 +765,45 @@ const styles = StyleSheet.create({
   },
   pickerWrapper: {
     zIndex: 1000,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
+    flex: 1,
+  },
+  modalHeaderButtonText: {
+    fontSize: 17,
+    color: '#007AFF',
+  },
+  searchContainer: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  searchInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    color: '#fff',
+    fontSize: 16,
+  },
+  modalListItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalListItemText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
