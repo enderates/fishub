@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert
+  Alert,
+  Image
 } from 'react-native';
 import { db } from '../firebaseConfig';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
@@ -67,6 +68,13 @@ export default function FishListScreen() {
 
   const renderItem = ({ item }) => (
     <View style={styles.itemBox}>
+      {item.photoURL && (
+        <Image 
+          source={{ uri: item.photoURL }} 
+          style={styles.photo}
+          resizeMode="cover"
+        />
+      )}
       <Text style={styles.itemText}>{item.speciesLabel} - {item.weight}gr</Text>
       <View style={styles.actions}>
         <TouchableOpacity onPress={() => handleEdit(item)} style={styles.actionBtn}>
@@ -105,6 +113,12 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 10,
     backgroundColor: '#f9f9f9'
+  },
+  photo: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 10,
   },
   itemText: { fontSize: 16 },
   actions: { flexDirection: 'row', marginTop: 10, justifyContent: 'space-between' },

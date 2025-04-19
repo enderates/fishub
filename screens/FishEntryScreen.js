@@ -16,11 +16,15 @@ import {
   ImageBackground,
   SafeAreaView,
   Pressable,
-  TextInput
+  TextInput,
+  Image
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { db } from '../firebaseConfig';
+import { db, storage } from '../firebaseConfig';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
 import ModernButton from '../components/ModernButton';
 
@@ -101,7 +105,7 @@ const NumberPicker = memo(({
   );
 });
 
-const FormField = ({ field, value, onValueChange }) => {
+const FormField = ({ field, value, onValueChange, isRequired }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [pickerPosition, setPickerPosition] = useState(null);
   const inputRef = useRef(null);
@@ -129,10 +133,16 @@ const FormField = ({ field, value, onValueChange }) => {
 
   return (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>{field.label}</Text>
+      <View style={styles.labelContainer}>
+        <Text style={styles.label}>{field.label}</Text>
+        {isRequired && <Text style={styles.requiredIndicator}>*</Text>}
+      </View>
       <TouchableOpacity 
         ref={inputRef}
-        style={styles.selectBox}
+        style={[
+          styles.selectBox,
+          isRequired && !value && styles.requiredField
+        ]}
         onPress={handlePress}
       >
         <Text style={styles.selectBoxText}>
@@ -244,6 +254,8 @@ export default function BilibiliScreen() {
   const [loadingSpecies, setLoadingSpecies] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [photo, setPhoto] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const lookupKeys = {
     baitType: 'baitTypes',
@@ -345,6 +357,15 @@ export default function BilibiliScreen() {
       });
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Kamera erişimi için izin vermeniz gerekiyor.');
+      }
+    })();
+  }, []);
+
   const showAlert = (title, message) => {
     if (Platform.OS === 'web') {
       window.alert(`${title}\n${message}`);
@@ -353,50 +374,186 @@ export default function BilibiliScreen() {
     }
   };
 
-  const handleSave = async () => {
-    const requiredFields = [
-      { field: 'Balık Türü', value: selectedSpecies },
-      { field: 'Lokasyon', value: location },
-      { field: 'Ağırlık', value: formData.weight },
-      { field: 'Boy', value: formData.length }
-    ];
+  const handlePhotoSelect = async (type) => {
+    try {
+      let result;
+      if (type === 'camera') {
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+      }
 
-    const missingFields = requiredFields.filter(item => !item.value);
+      if (result.canceled) {
+        console.log('Kullanıcı işlemi iptal etti');
+        return;
+      }
+
+      if (!result.assets || result.assets.length === 0) {
+        console.error('Fotoğraf seçilmedi');
+        Alert.alert('Hata', 'Fotoğraf seçilmedi');
+        return;
+      }
+
+      setPhoto(result.assets[0]);
+    } catch (error) {
+      console.error('Fotoğraf seçme hatası:', error);
+      Alert.alert('Hata', 'Fotoğraf seçilirken bir hata oluştu. Lütfen izinleri kontrol edin.');
+    }
+  };
+
+  const uploadPhoto = async () => {
+    if (!photo) return null;
+
+    try {
+      setUploading(true);
+      
+      // Create a unique filename
+      const timestamp = Date.now();
+      const filename = `fish_photos/${timestamp}_${photo.fileName || 'photo.jpg'}`;
+      const storageRef = ref(storage, filename);
+
+      let blob;
+      if (Platform.OS === 'web') {
+        // For web platform
+        const response = await fetch(photo.uri);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        blob = await response.blob();
+      } else {
+        // For React Native
+        try {
+          // Get file info
+          const fileInfo = await FileSystem.getInfoAsync(photo.uri);
+          if (!fileInfo.exists) {
+            throw new Error('Dosya bulunamadı');
+          }
+
+          // Read file as base64
+          const base64 = await FileSystem.readAsStringAsync(photo.uri, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+
+          // Convert base64 to Uint8Array
+          const binaryString = atob(base64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+
+          // Create Blob from Uint8Array
+          blob = new Blob([bytes], { type: 'image/jpeg' });
+        } catch (error) {
+          console.error('Blob oluşturma hatası:', error);
+          throw new Error('Fotoğraf yüklenirken bir hata oluştu. Lütfen tekrar deneyiniz.');
+        }
+      }
+
+      // Check blob size
+      if (blob.size > 10 * 1024 * 1024) { // 10MB limit
+        throw new Error('Fotoğraf boyutu çok büyük. Lütfen daha küçük bir fotoğraf seçin.');
+      }
+
+      // Set metadata for the upload
+      const metadata = {
+        contentType: 'image/jpeg',
+        customMetadata: {
+          uploadedBy: 'fishub_app',
+          timestamp: timestamp.toString(),
+          size: blob.size.toString(),
+          platform: Platform.OS
+        }
+      };
+
+      // Upload with metadata
+      const uploadTask = uploadBytes(storageRef, blob, metadata);
+      
+      // Wait for the upload to complete
+      const snapshot = await uploadTask;
+      
+      // Get the download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      console.log('Fotoğraf başarıyla yüklendi:', downloadURL);
+      return downloadURL;
+    } catch (error) {
+      console.error('Fotoğraf yükleme hatası:', error);
+      let errorMessage = 'Fotoğraf yüklenirken bir hata oluştu.';
+      
+      if (error.message.includes('size')) {
+        errorMessage = error.message;
+      } else if (error.code === 'storage/unauthorized') {
+        errorMessage = 'Fotoğraf yükleme izniniz yok. Lütfen yetkililerle iletişime geçin.';
+      } else if (error.code === 'storage/canceled') {
+        errorMessage = 'Fotoğraf yükleme işlemi iptal edildi.';
+      }
+      
+      Alert.alert('Hata', errorMessage);
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    const requiredFields = {
+      species: selectedSpecies,
+      speciesLabel: selectedLabel,
+      weight: formData.weight,
+      length: formData.length,
+      location: location
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value)
+      .map(([key]) => {
+        switch (key) {
+          case 'species':
+          case 'speciesLabel':
+            return 'Balık Türü';
+          case 'weight':
+            return 'Ağırlık';
+          case 'length':
+            return 'Boy';
+          case 'location':
+            return 'Lokasyon';
+          default:
+            return key;
+        }
+      });
 
     if (missingFields.length > 0) {
-      Alert.alert(
-        "Eksik Alanlar",
-        missingFields.map(item => 
-          `• ${item.field}`
-        ).join('\n'),
-        [{ text: "Tamam", style: "default" }],
-        {
-          cancelable: true,
-          messageStyle: Platform.select({
-            android: {
-              textAlign: 'left',
-              fontSize: 16,
-            }
-          }),
-          containerStyle: Platform.select({
-            ios: {
-              backgroundColor: 'rgba(255, 140, 0, 0.1)',
-              borderRadius: 10,
-            }
-          })
-        }
+      showAlert(
+        "Eksik Bilgi",
+        `Lütfen aşağıdaki zorunlu alanları doldurunuz:\n${missingFields.join('\n')}`
       );
       return;
     }
 
     try {
+      let photoURL = null;
+      if (photo) {
+        photoURL = await uploadPhoto();
+      }
+
       const fishData = {
         species: selectedSpecies,
         speciesLabel: selectedLabel,
         length: formData.length,
         weight: formData.weight,
         location,
-        timestamp: Platform.OS === 'web' ? new Date(`${webDate}T${webTime}`) : dateTime
+        timestamp: Platform.OS === 'web' ? new Date(`${webDate}T${webTime}`) : dateTime,
+        photoURL: photoURL
       };
 
       // Opsiyonel alanları sadece değer varsa ekle
@@ -415,7 +572,8 @@ export default function BilibiliScreen() {
 
       showAlert("Başarılı", "Kayıt başarıyla eklendi.");
       
-      // Form alanlarını temizle
+      // Reset form including photo
+      setPhoto(null);
       setSelectedSpecies('');
       setSelectedLabel('');
       setBaitType('');
@@ -456,9 +614,47 @@ export default function BilibiliScreen() {
           <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
             <Text style={styles.title}>Balık Girişi</Text>
 
+            {/* Photo Section */}
+            <View style={styles.photoSection}>
+              <Text style={styles.label}>Fotoğraf</Text>
+              {photo ? (
+                <View style={styles.photoPreview}>
+                  <Image source={{ uri: photo.uri }} style={styles.photo} />
+                  <TouchableOpacity 
+                    style={styles.removePhotoButton}
+                    onPress={() => setPhoto(null)}
+                  >
+                    <Text style={styles.removePhotoText}>Fotoğrafı Kaldır</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.photoButtons}>
+                  <ModernButton
+                    label="Fotoğraf Çek"
+                    onPress={() => handlePhotoSelect('camera')}
+                    style={styles.photoButton}
+                  />
+                  <ModernButton
+                    label="Galeriden Seç"
+                    onPress={() => handlePhotoSelect('gallery')}
+                    style={styles.photoButton}
+                  />
+                </View>
+              )}
+            </View>
+
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Balık Türü</Text>
-              <TouchableOpacity style={styles.selectBox} onPress={() => setModalVisible(true)}>
+              <View style={styles.labelContainer}>
+                <Text style={styles.label}>Balık Türü</Text>
+                <Text style={styles.requiredIndicator}>*</Text>
+              </View>
+              <TouchableOpacity 
+                style={[
+                  styles.selectBox,
+                  !selectedSpecies && styles.requiredField
+                ]} 
+                onPress={() => setModalVisible(true)}
+              >
                 <Text style={styles.selectBoxText}>{selectedLabel || 'Balık türü seçin...'}</Text>
               </TouchableOpacity>
             </View>
@@ -475,13 +671,22 @@ export default function BilibiliScreen() {
             />
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Lokasyon</Text>
-              <TouchableOpacity style={styles.selectBox} onPress={() => navigation.navigate('MapPickerScreen', {
-                onLocationSelected: (coords) => {
-                  const formatted = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
-                  setLocation(formatted);
-                },
-              })}>
+              <View style={styles.labelContainer}>
+                <Text style={styles.label}>Lokasyon</Text>
+                <Text style={styles.requiredIndicator}>*</Text>
+              </View>
+              <TouchableOpacity 
+                style={[
+                  styles.selectBox,
+                  !location && styles.requiredField
+                ]}
+                onPress={() => navigation.navigate('MapPickerScreen', {
+                  onLocationSelected: (coords) => {
+                    const formatted = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+                    setLocation(formatted);
+                  },
+                })}
+              >
                 <Text style={styles.selectBoxText}>{location || 'Konum seçin...'}</Text>
               </TouchableOpacity>
             </View>
@@ -506,6 +711,7 @@ export default function BilibiliScreen() {
                 field={field}
                 value={formData[field.id]}
                 onValueChange={(value) => handleFieldChange(field.id, value)}
+                isRequired={field.id === 'length' || field.id === 'weight'}
               />
             ))}
 
@@ -716,5 +922,48 @@ const styles = StyleSheet.create({
     marginTop: 0,
     width: 'auto', // İçeriğe göre genişlik
     alignSelf: 'center',
+  },
+  photoSection: {
+    marginBottom: 20,
+  },
+  photoButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  photoButton: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  photoPreview: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  photo: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  removePhotoButton: {
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
+    padding: 10,
+    borderRadius: 5,
+  },
+  removePhotoText: {
+    color: '#fff',
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  requiredIndicator: {
+    color: 'red',
+    marginLeft: 4,
+  },
+  requiredField: {
+    borderColor: 'red',
+    borderWidth: 1,
   },
 });
