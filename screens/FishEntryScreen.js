@@ -31,7 +31,11 @@ import * as Localization from 'expo-localization';
 
 let DateTimePicker;
 if (Platform.OS !== 'web') {
-  DateTimePicker = require('@react-native-community/datetimepicker').default;
+  try {
+    DateTimePicker = require('@react-native-community/datetimepicker').default;
+  } catch (error) {
+    console.log('DateTimePicker yüklenemedi:', error);
+  }
 }
 
 const NumberPicker = memo(({ 
@@ -372,6 +376,55 @@ const SpeciesPickerModal = memo(({ visible, onClose, onSelect }) => {
 
 // Cloudinary ayarları
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+// Tarih ve saat seçici komponenti
+const DateTimePickerComponent = ({ value, onChange }) => {
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.webDateContainer}>
+        <TextInput
+          style={styles.webDateInput}
+          placeholder="YYYY-MM-DD"
+          value={value ? value.toISOString().split('T')[0] : ''}
+          onChangeText={(text) => {
+            const [year, month, day] = text.split('-').map(Number);
+            if (year && month && day) {
+              const newDate = new Date(value);
+              newDate.setFullYear(year, month - 1, day);
+              onChange(newDate);
+            }
+          }}
+        />
+        <TextInput
+          style={styles.webDateInput}
+          placeholder="HH:MM"
+          value={value ? `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}` : ''}
+          onChangeText={(text) => {
+            const [hours, minutes] = text.split(':').map(Number);
+            if (!isNaN(hours) && !isNaN(minutes)) {
+              const newDate = new Date(value);
+              newDate.setHours(hours, minutes);
+              onChange(newDate);
+            }
+          }}
+        />
+      </View>
+    );
+  }
+
+  return DateTimePicker ? (
+    <DateTimePicker
+      value={value || new Date()}
+      onChange={(event, selectedDate) => onChange(selectedDate || value)}
+      mode="datetime"
+      textColor="#fff"
+      themeVariant="dark"
+      style={{ flex: 1 }}
+    />
+  ) : (
+    <Text style={styles.errorText}>DateTimePicker yüklenemedi</Text>
+  );
+};
 
 export default function BilibiliScreen() {
   const navigation = useNavigation();
@@ -793,13 +846,9 @@ export default function BilibiliScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Tarih & Saat</Text>
               <View style={[styles.selectBoxSmallDate, dateTime ? { borderColor: '#FFA500' } : { borderColor: '#fff' }]}>
-                <DateTimePicker
+                <DateTimePickerComponent 
                   value={dateTime}
-                  onChange={(event, selectedDate) => setDateTime(selectedDate || dateTime)}
-                  mode="datetime"
-                  textColor="#fff"
-                  themeVariant="dark"
-                  style={{ flex: 1 }}
+                  onChange={(selectedDate) => setDateTime(selectedDate || dateTime)}
                 />
               </View>
             </View>
@@ -1125,5 +1174,24 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     fontSize: 10,
     color: '#fff',
+  },
+  webDateContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    alignItems: 'center',
+  },
+  webDateInput: {
+    flex: 1,
+    height: 40,
+    color: '#fff',
+    borderWidth: 0,
+    marginHorizontal: 5,
+    textAlign: 'center',
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    padding: 5,
   },
 });
