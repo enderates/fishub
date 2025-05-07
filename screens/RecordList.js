@@ -31,6 +31,7 @@ import { deleteImageFromCloudinary } from '../services/cloudinaryService';
 import CustomCheckbox from '../components/CustomCheckbox';
 import { Ionicons } from '@expo/vector-icons';
 import { getLocationInfo } from '../services/geocodingService';
+import * as Localization from 'expo-localization';
 
 const TABLE_COLUMNS = [
   {
@@ -229,15 +230,105 @@ const TABLE_COLUMNS = [
   },
 ];
 
-const SpeciesPickerModal = memo(({ visible, onClose, fishSpecies, onSelect }) => {
-  const [searchText, setSearchText] = useState('');
-  
-  const filteredSpecies = useMemo(() => {
-    if (!searchText) return fishSpecies;
-    return fishSpecies.filter(item => 
-      item.label.toLowerCase().includes(searchText.toLowerCase())
-    );
-  }, [searchText, fishSpecies]);
+// Yaygın Türkçe balık isimleri ve eşleştirmeleri
+const commonTurkishFishNames = {
+  'levrek': { eng: 'European seabass', sci: 'Dicentrarchus labrax' },
+  'hamsi': { eng: 'European anchovy', sci: 'Engraulis encrasicolus' },
+  'lüfer': { eng: 'Bluefish', sci: 'Pomatomus saltatrix' },
+  'çipura': { eng: 'Gilt-head bream', sci: 'Sparus aurata' },
+  'palamut': { eng: 'Atlantic bonito', sci: 'Sarda sarda' },
+  'istavrit': { eng: 'Atlantic horse mackerel', sci: 'Trachurus trachurus' },
+  'kefal': { eng: 'Flathead grey mullet', sci: 'Mugil cephalus' },
+  'mezgit': { eng: 'Whiting', sci: 'Merlangius merlangus' },
+  'sardalya': { eng: 'European pilchard', sci: 'Sardina pilchardus' },
+  'uskumru': { eng: 'Atlantic mackerel', sci: 'Scomber scombrus' },
+  'kalkan': { eng: 'Turbot', sci: 'Scophthalmus maximus' },
+  'dil balığı': { eng: 'Common sole', sci: 'Solea solea' },
+  'tekir': { eng: 'Striped red mullet', sci: 'Mullus surmuletus' },
+  'barbunya': { eng: 'Red mullet', sci: 'Mullus barbatus' },
+  'fangri': { eng: 'Red porgy', sci: 'Pagrus pagrus' },
+  'sinarit': { eng: 'Common dentex', sci: 'Dentex dentex' },
+  'orfoz': { eng: 'Dusky grouper', sci: 'Epinephelus marginatus' },
+  'lahos': { eng: 'White grouper', sci: 'Epinephelus aeneus' },
+  'karagöz': { eng: 'Common two-banded seabream', sci: 'Diplodus vulgaris' },
+  'sargoz': { eng: 'White seabream', sci: 'Diplodus sargus' }
+};
+
+const SpeciesPickerModal = React.memo(({ visible, onClose, onSelect }) => {
+  const [searchText, setSearchText] = React.useState('');
+  const [results, setResults] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const searchFish = async (query) => {
+    if (query.length < 2) {
+      setResults([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      // Yerel eşleşmeler
+      const localMatches = Object.entries(commonTurkishFishNames)
+        .filter(([turkishName]) => turkishName.toLowerCase().startsWith(query.toLowerCase()))
+        .map(([turkishName, data]) => ({
+          label: data.eng,
+          localName: turkishName,
+          value: `local_${turkishName}`,
+          scientificName: data.sci,
+          isLocal: true
+        }));
+      // Sistem dili
+      const systemLanguage = Localization.locale.split('-')[0];
+      // API araması
+      const url = `https://api.gbif.org/v1/species/search?taxon_key=204&limit=100&q=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      let apiResults = [];
+      if (data.results && data.results.length > 0) {
+        apiResults = data.results
+          .map(item => {
+            try {
+              const engName = item.vernacularNames?.find(name => name.language === 'eng')?.vernacularName;
+              const localName = item.vernacularNames?.find(name => name.language === systemLanguage)?.vernacularName;
+              const displayName = engName || item.canonicalName || 'Unknown Species';
+              return {
+                label: displayName,
+                localName: localName || null,
+                value: item.key.toString(),
+                scientificName: item.canonicalName || 'Unknown Species',
+                rank: item.rank,
+                status: item.status,
+                isLocal: false
+              };
+            } catch (error) {
+              return null;
+            }
+          })
+          .filter(Boolean)
+          .filter(item => {
+            try {
+              const searchWords = query.toLowerCase().split(' ');
+              const nameWords = (item.label || '').toLowerCase().split(' ');
+              return searchWords.every(searchWord => nameWords.some(nameWord => nameWord.startsWith(searchWord)));
+            } catch (error) {
+              return false;
+            }
+          });
+      }
+      const allResults = [...localMatches, ...apiResults];
+      allResults.sort((a, b) => {
+        try {
+          return (a.label || '').localeCompare(b.label || '', 'en');
+        } catch (error) {
+          return 0;
+        }
+      });
+      setResults(allResults);
+    } catch (error) {
+      setResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Modal
@@ -257,37 +348,61 @@ const SpeciesPickerModal = memo(({ visible, onClose, fishSpecies, onSelect }) =>
               <Text style={styles.modalHeaderButtonText}>Tamam</Text>
             </TouchableOpacity>
           </View>
-
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
               placeholder="Balık türü ara..."
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={searchText}
-              onChangeText={setSearchText}
+              onChangeText={(text) => {
+                setSearchText(text);
+                searchFish(text);
+              }}
               autoCorrect={false}
               autoCapitalize="none"
             />
           </View>
-
-          <FlatList
-            data={filteredSpecies}
-            keyExtractor={(item) => item.value}
-            keyboardShouldPersistTaps="always"
-            style={{ flex: 1, backgroundColor: '#1c1c1e' }}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                onPress={() => {
-                  onSelect(item.value);
-                  onClose();
-                  setSearchText('');
-                }}
-                style={styles.modalListItem}
-              >
-                <Text style={styles.modalListItemText}>{item.label}</Text>
-              </TouchableOpacity>
-            )}
-          />
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#fff" />
+            </View>
+          ) : (
+            <FlatList
+              data={results}
+              keyExtractor={(item) => item.value}
+              keyboardShouldPersistTaps="always"
+              style={{ flex: 1, backgroundColor: '#1c1c1e' }}
+              ListEmptyComponent={() => (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    {searchText.length > 0 ? 'Sonuç bulunamadı' : 'Aramak için yazmaya başlayın...'}
+                  </Text>
+                </View>
+              )}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  onPress={() => {
+                    onSelect(item.value, item.label);
+                    onClose();
+                  }}
+                  style={styles.modalListItem}
+                >
+                  <View style={styles.listItemContent}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.modalListItemText}>{item.label}</Text>
+                      {item.isLocal && (
+                        <Text style={styles.sourceBadge}>Common</Text>
+                      )}
+                    </View>
+                    <Text style={styles.scientificName}>{item.scientificName}</Text>
+                    {item.localName && (
+                      <Text style={styles.localName}>{item.localName}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          )}
         </View>
       </SafeAreaView>
     </Modal>
@@ -366,6 +481,7 @@ export default function RecordList() {
   const [fishRecords, setFishRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedSpecies, setSelectedSpecies] = useState('');
+  const [selectedSpeciesLabel, setSelectedSpeciesLabel] = useState('');
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [fishSpecies, setFishSpecies] = useState([]);
@@ -392,8 +508,8 @@ export default function RecordList() {
       let constraints = [];
 
       // Balık türü filtresi
-      if (selectedSpecies) {
-        constraints.push(where('speciesLabel', '==', selectedSpecies));
+      if (selectedSpeciesLabel) {
+        constraints.push(where('speciesLabel', '==', selectedSpeciesLabel));
       }
 
       // Tarih filtrelerini ayarlayalım
@@ -721,7 +837,7 @@ export default function RecordList() {
               onPress={() => setSpeciesModalVisible(true)}
             >
               <Text style={styles.selectBoxText}>
-                {selectedSpecies || 'Tüm Balık Türleri'}
+                {selectedSpeciesLabel || 'Tüm Balık Türleri'}
               </Text>
             </TouchableOpacity>
 
@@ -787,12 +903,12 @@ export default function RecordList() {
           </View>
         </View>
 
-        <SpeciesPickerModal 
+        <SpeciesPickerModal
           visible={speciesModalVisible}
           onClose={() => setSpeciesModalVisible(false)}
-          fishSpecies={fishSpecies}
-          onSelect={(value) => {
+          onSelect={(value, label) => {
             setSelectedSpecies(value);
+            setSelectedSpeciesLabel(label);
             setSpeciesModalVisible(false);
           }}
         />
@@ -1156,5 +1272,41 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 10,
     textAlign: 'center',
-  }
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 14,
+  },
+  listItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sourceBadge: {
+    backgroundColor: 'rgba(0, 122, 255, 0.7)',
+    borderRadius: 4,
+    padding: 2,
+    marginLeft: 4,
+  },
+  scientificName: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+  },
+  localName: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+  },
 });

@@ -768,14 +768,14 @@ export default function BilibiliScreen() {
 
             <View style={styles.inputGroup}>
               <View style={styles.labelContainer}>
-                <Text style={styles.label}>Lokasyon</Text>
+                <Text style={styles.label}>Konum</Text>
               </View>
               <TouchableOpacity
                 style={[
                   styles.selectBox,
                   location ? { borderColor: '#FFA500' } : { borderColor: '#fff' }
                 ]}
-                onPress={() => navigation.navigate('MapPickerScreen', {
+                onPress={() => navigation.navigate('MapPicker', {
                   onLocationSelected: (coords) => {
                     const formatted = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
                     setLocation(formatted);

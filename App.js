@@ -12,6 +12,7 @@ import RecordList from './screens/RecordList';
 import EditRecord from './screens/EditRecord';
 import EditFishScreen from './screens/EditFishScreen';
 import UserProfile from './screens/UserProfile';
+import FishAnalizScreen from './screens/FishAnalizScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,6 +30,7 @@ export default function App() {
         <Stack.Screen name="EditRecord" component={EditRecord} />
         <Stack.Screen name="EditFish" component={EditFishScreen} />
         <Stack.Screen name="Profile" component={UserProfile} options={{ title: 'My Profile' }} />
+        <Stack.Screen name="FishAnaliz" component={FishAnalizScreen} options={{ title: 'Fish Analiz' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

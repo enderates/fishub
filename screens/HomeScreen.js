@@ -89,17 +89,17 @@ export default function HomeScreen() {
 
             <View style={styles.buttonContainer}>
               <ModernButton
-                label="Raporla / Sil / Değiştir"
-                onPress={() => navigation.navigate('RecordList')}
+                label="FishAnaliz"
+                onPress={() => navigation.navigate('FishAnaliz')}
                 style={styles.customButton}
               />
             </View>
-            
+
             <View style={styles.buttonContainer}>
               <ModernButton
-                label="Login Ekranı"
-                onPress={() => navigation.navigate('Login')}
-                style={[styles.customButton, {marginTop: 30}]}
+                label="Raporla / Sil / Değiştir"
+                onPress={() => navigation.navigate('RecordList')}
+                style={styles.customButton}
               />
             </View>
           </View>

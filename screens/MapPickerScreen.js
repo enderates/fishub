@@ -1,6 +1,6 @@
 // screens/MapPickerScreen.js
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
@@ -23,6 +23,7 @@ export default function MapPickerScreen() {
   const route = useRoute();
   const onLocationSelected = route.params?.onLocationSelected;
 
+  const mapRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [initialRegion, setInitialRegion] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -95,6 +96,9 @@ export default function MapPickerScreen() {
       setSelectedLocation({ latitude: lat, longitude: lng });
       setSuggestions([]);
       setAddress(data.result.formatted_address);
+      if (mapRef.current && mapRef.current.animateToRegion) {
+        mapRef.current.animateToRegion(newRegion, 1000);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -113,6 +117,7 @@ export default function MapPickerScreen() {
 
   return (
     <View style={styles.container}>
+      <Text style={styles.searchLabel}>Lokasyon Ara</Text>
       <TextInput
         style={styles.input}
         placeholder="Adres girin..."
@@ -136,9 +141,15 @@ export default function MapPickerScreen() {
       )}
       {initialRegion && (
         <MapView
+          ref={mapRef}
           style={styles.map}
           onPress={handleSelectLocation}
           initialRegion={initialRegion}
+          provider={PROVIDER_GOOGLE}
+          showsUserLocation={true}
+          showsMyLocationButton={true}
+          showsCompass={true}
+          zoomControlEnabled={true}
         >
           {currentLocation && (
             <Marker
@@ -160,13 +171,20 @@ export default function MapPickerScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  searchLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginHorizontal: 10,
+    marginTop: Platform.OS === 'ios' ? 60 : 40,
+    color: '#333',
+  },
   input: {
     padding: 12,
     borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 5,
     marginHorizontal: 10,
-    marginTop: Platform.OS === 'ios' ? 60 : 40,
+    marginTop: 5,
     backgroundColor: '#fff',
     zIndex: 999,
     elevation: 3,
