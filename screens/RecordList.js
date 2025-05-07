@@ -56,23 +56,6 @@ const TABLE_COLUMNS = [
     dataIndex: 'photoURL',
     key: 'photo',
     width: 100,
-    render: (photoURL) => (
-      <View style={styles.photoCell}>
-        {photoURL ? (
-          <TouchableOpacity onPress={() => handlePhotoPress(photoURL)}>
-            <Image
-              source={{ uri: photoURL }}
-              style={styles.photo}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.noPhoto}>
-            <Text style={styles.noPhotoText}>Fotoğraf Yok</Text>
-          </View>
-        )}
-      </View>
-    ),
   },
   {
     title: 'Tür',
@@ -575,14 +558,6 @@ export default function RecordList() {
     );
   };
 
-  // Fotoğrafa tıklama işleyicisi
-  const handlePhotoPress = useCallback((photoURL) => {
-    if (photoURL) {
-      setSelectedPhoto(photoURL);
-      setPhotoModalVisible(true);
-    }
-  }, []);
-
   const renderTableHeaders = () => (
     <View style={styles.headerRow}>
       {TABLE_COLUMNS.map((column, index) => (
@@ -598,7 +573,7 @@ export default function RecordList() {
       {TABLE_COLUMNS.map((column, colIndex) => {
         if (column.key === 'select') {
           return (
-            <View key={colIndex} style={[styles.cell, { width: column.width }]}>
+            <View key={colIndex} style={[styles.cell, { width: column.width }]}> 
               <CustomCheckbox
                 value={selectedRecords.includes(item.id)}
                 onValueChange={() => handleSelectRecord(item.id)}
@@ -629,8 +604,30 @@ export default function RecordList() {
             </TouchableOpacity>
           );
         }
+        if (column.key === 'photo') {
+          return (
+            <View key={colIndex} style={[styles.cell, { width: column.width }]}> 
+              {item.photoURL ? (
+                <TouchableOpacity onPress={() => {
+                  setSelectedPhoto(item.photoURL);
+                  setPhotoModalVisible(true);
+                }}>
+                  <Image
+                    source={{ uri: item.photoURL }}
+                    style={styles.photo}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.noPhoto}>
+                  <Text style={styles.noPhotoText}>Fotoğraf Yok</Text>
+                </View>
+              )}
+            </View>
+          );
+        }
         return (
-          <View key={colIndex} style={[styles.cell, { width: column.width }]}>
+          <View key={colIndex} style={[styles.cell, { width: column.width }]}> 
             {column.render ? column.render(item[column.dataIndex], item) : (
               <Text style={styles.cellText}>
                 {item[column.dataIndex]}
