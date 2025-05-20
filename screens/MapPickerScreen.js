@@ -12,7 +12,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
@@ -51,13 +51,27 @@ export default function MapPickerScreen() {
   }, []);
 
   const handleSelectLocation = (event) => {
-    const coords = event.nativeEvent.coordinate;
-    setSelectedLocation(coords);
-    setInitialRegion({
-      ...coords,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
-    });
+    try {
+      if (event && event.nativeEvent && event.nativeEvent.coordinate) {
+        const coords = event.nativeEvent.coordinate;
+        setSelectedLocation({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        });
+        
+        // Haritayı seçilen konuma odakla
+        if (mapRef.current && mapRef.current.animateToRegion) {
+          mapRef.current.animateToRegion({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('Konum seçme hatası:', error);
+    }
   };
 
   const handleSearch = async (text) => {
@@ -85,33 +99,61 @@ export default function MapPickerScreen() {
         `https://maps.googleapis.com/maps/api/place/details/json?key=${GOOGLE_API_KEY}&place_id=${placeId}`
       );
       const data = await res.json();
-      const { lat, lng } = data.result.geometry.location;
-      const newRegion = {
-        latitude: lat,
-        longitude: lng,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-      setInitialRegion(newRegion);
-      setSelectedLocation({ latitude: lat, longitude: lng });
-      setSuggestions([]);
-      setAddress(data.result.formatted_address);
-      if (mapRef.current && mapRef.current.animateToRegion) {
-        mapRef.current.animateToRegion(newRegion, 1000);
+      
+      if (data.status === 'OK' && data.result && data.result.geometry && data.result.geometry.location) {
+        const { lat, lng } = data.result.geometry.location;
+        
+        // Güvenlik kontrolü
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          const newRegion = {
+            latitude: lat,
+            longitude: lng,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          };
+          
+          // Önce state'i güncelleyelim
+          setSelectedLocation({
+            latitude: lat,
+            longitude: lng,
+          });
+          
+          setSuggestions([]);
+          setAddress(data.result.formatted_address || '');
+          
+          // Harita animasyonu
+          if (mapRef.current && mapRef.current.animateToRegion) {
+            setTimeout(() => {
+              mapRef.current.animateToRegion(newRegion, 1000);
+            }, 100);
+          }
+        }
+      } else {
+        throw new Error('Geçersiz konum bilgisi');
       }
     } catch (err) {
-      console.error(err);
+      console.error('Yer detayı alınamadı:', err);
     }
   };
 
   const handleConfirm = () => {
-    if (selectedLocation) {
-      onLocationSelected(selectedLocation);
-      navigation.goBack();
-    } else {
-      Platform.OS === 'web'
-        ? window.alert('Lütfen bir konum seçin.')
-        : Alert.alert('Uyarı', 'Lütfen bir konum seçin.');
+    try {
+      if (selectedLocation && 
+          typeof selectedLocation.latitude === 'number' && 
+          typeof selectedLocation.longitude === 'number') {
+        if (typeof onLocationSelected === 'function') {
+          onLocationSelected(selectedLocation);
+          navigation.goBack();
+        } else {
+          console.error('onLocationSelected is not a function');
+          Alert.alert('Hata', 'Konum seçme işlevi çalışmıyor. Lütfen tekrar deneyin.');
+        }
+      } else {
+        Alert.alert('Uyarı', 'Lütfen haritadan bir konum seçin.');
+      }
+    } catch (error) {
+      console.error('Konum onaylama hatası:', error);
+      Alert.alert('Hata', 'Konum seçim işlemi sırasında bir hata oluştu.');
     }
   };
 
@@ -145,25 +187,39 @@ export default function MapPickerScreen() {
           style={styles.map}
           onPress={handleSelectLocation}
           initialRegion={initialRegion}
-          provider={PROVIDER_GOOGLE}
           showsUserLocation={true}
           showsMyLocationButton={true}
           showsCompass={true}
-          zoomControlEnabled={true}
+          toolbarEnabled={false}
         >
           {currentLocation && (
             <Marker
-              coordinate={currentLocation}
+              coordinate={{
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude
+              }}
               title="Bulunduğun Konum"
-              description="Bu senin bulunduğun yer."
               pinColor="blue"
+              tracksViewChanges={false}
             />
           )}
-          {selectedLocation && <Marker coordinate={selectedLocation} />}
+          {selectedLocation && (
+            <Marker 
+              coordinate={{
+                latitude: selectedLocation.latitude,
+                longitude: selectedLocation.longitude
+              }}
+              tracksViewChanges={false}
+            />
+          )}
         </MapView>
       )}
       <View style={styles.buttonContainer}>
-        <Button title="Konumu Onayla" onPress={handleConfirm} />
+        <Button 
+          title="Konumu Onayla" 
+          onPress={handleConfirm} 
+          disabled={!selectedLocation}
+        />
       </View>
     </View>
   );

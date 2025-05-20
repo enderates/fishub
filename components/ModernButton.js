@@ -17,12 +17,12 @@ export default function ModernButton({ label, onPress, style, disabled }) {
 const styles = StyleSheet.create({
   button: {
     backgroundColor: '#0288d1', // Deniz mavisi, göz alıcı
-    paddingVertical: 16,
-    paddingHorizontal: 26,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 30,
     alignItems: 'center',
-    marginTop: 20,
-    width: 120, // Sabit genişlik
+    justifyContent: 'center',
+    minWidth: 120,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -31,8 +31,9 @@ const styles = StyleSheet.create({
   },
   label: {
     color: '#fff',
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,

@@ -1057,14 +1057,21 @@ export default function EditFishScreen() {
                   styles.selectBox,
                   location ? { borderColor: '#FFA500' } : { borderColor: '#fff' }
                 ]}
-                onPress={() => navigation.navigate('MapPicker', {
-                  onLocationSelected: (coords) => {
-                    const formatted = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
-                    setLocation(formatted);
-                    setLocationLatitude(coords.latitude);
-                    setLocationLongitude(coords.longitude);
-                  },
-                })}
+                onPress={() => {
+                  try {
+                    navigation.navigate('MapPicker', {
+                      onLocationSelected: (coords) => {
+                        const formatted = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+                        setLocation(formatted);
+                        setLocationLatitude(coords.latitude);
+                        setLocationLongitude(coords.longitude);
+                      },
+                    });
+                  } catch (error) {
+                    console.error('MapPicker navigasyon hatası:', error);
+                    Alert.alert('Hata', 'Harita açılırken bir sorun oluştu. Lütfen tekrar deneyin.');
+                  }
+                }}
               >
                 <Text style={[styles.selectBoxText, location ? { color: '#FFA500' } : { color: '#fff' }]}>
                   {location || 'Konum seçin...'}

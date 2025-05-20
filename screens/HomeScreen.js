@@ -5,23 +5,22 @@ import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
-  SafeAreaView,
   TouchableOpacity,
   Platform,
   Image,
+  ImageBackground,
 } from 'react-native';
-import ModernButton from '../components/ModernButton';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth, db } from '../firebaseConfig';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Animatable from 'react-native-animatable';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [profilePhoto, setProfilePhoto] = useState(null);
 
-  // Profil fotoğrafı listener'ı
   useEffect(() => {
     let unsubscribe;
     
@@ -40,9 +39,8 @@ export default function HomeScreen() {
         unsubscribe();
       }
     };
-  }, []);  // profilePhoto dependency'si kaldırıldı
+  }, []);
 
-  // Header options'ı ayrı bir useEffect'te yönetiyoruz
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -56,8 +54,8 @@ export default function HomeScreen() {
               style={styles.profilePhoto}
             />
           ) : (
-            <Ionicons
-              name="person-circle-outline"
+            <MaterialCommunityIcons
+              name="account-circle-outline"
               size={24}
               color="#007AFF"
               style={{ marginRight: 15 }}
@@ -68,43 +66,68 @@ export default function HomeScreen() {
     });
   }, [navigation, profilePhoto]);
 
+  const MenuButton = ({ title, icon, onPress, colors }) => (
+    <Animatable.View
+      animation="fadeInUp"
+      duration={1000}
+      useNativeDriver
+    >
+      <TouchableOpacity
+        style={styles.buttonContainer}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={colors}
+          style={styles.button}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <MaterialCommunityIcons name={icon} size={40} color="white" />
+          <Text style={styles.buttonText}>{title}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animatable.View>
+  );
+
   return (
     <ImageBackground
       source={require('../assets/bg02.png')}
       style={styles.background}
       resizeMode="cover"
     >
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.centeredContent}>
-          <View style={styles.wrapper}>
-            <Text style={styles.title}>Hoş Geldin Fishub!</Text>
-
-            <View style={styles.buttonContainer}>
-              <ModernButton
-                label="Veri Giriş Ekranına Git"
-                onPress={() => navigation.navigate('FishEntry')}
-                style={styles.customButton}
-              />
-            </View>
-
-            <View style={styles.buttonContainer}>
-              <ModernButton
-                label="FishAnaliz"
-                onPress={() => navigation.navigate('FishAnaliz')}
-                style={styles.customButton}
-              />
-            </View>
-
-            <View style={styles.buttonContainer}>
-              <ModernButton
-                label="Raporla / Sil / Değiştir"
-                onPress={() => navigation.navigate('RecordList')}
-                style={styles.customButton}
-              />
-            </View>
-          </View>
+      <View style={styles.container}>
+        <Animatable.Text
+          animation="fadeInDown"
+          duration={1000}
+          style={styles.title}
+        >
+          FisHub
+        </Animatable.Text>
+        
+        <View style={styles.buttonGrid}>
+          <MenuButton
+            title="Veri Giriş"
+            icon="fish"
+            onPress={() => navigation.navigate('FishEntry')}
+            colors={['#4a90e2', '#357abd']}
+          />
+          
+          <MenuButton
+            title="Veri Düzenleme"
+            icon="database-edit"
+            onPress={() => navigation.navigate('RecordList')}
+            colors={['#50c878', '#3da066']}
+          />
+          
+          <MenuButton
+            title="Analiz"
+            icon="chart-line"
+            onPress={() => navigation.navigate('FishAnaliz')}
+            colors={['#ff6b6b', '#e74c3c']}
+          />
         </View>
-      </SafeAreaView>
+      </View>
     </ImageBackground>
   );
 }
@@ -112,48 +135,54 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
-  centeredContent: {
+  container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  wrapper: {
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    padding: 30,
-    paddingBottom: 50,
-    borderRadius: 20,
-    marginHorizontal: 30,
-    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   title: {
-    fontSize: 24,
+    fontSize: 42,
     fontWeight: 'bold',
-    marginBottom: 25,
+    color: 'white',
     textAlign: 'center',
-    color: '#0d47a1',
+    marginTop: 60,
+    marginBottom: 40,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 5,
   },
-  backButtonContainer: {
-    marginTop: Platform.OS === 'android' ? 50 : 60,
-    marginLeft: 20,
-    position: 'absolute',
-    zIndex: 999,
-  },
-  backText: {
-    color: '#fff',
-    fontSize: 18,
+  buttonGrid: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 20,
   },
   buttonContainer: {
-    alignItems: 'center',
-    marginVertical: 5,
+    marginVertical: 10,
+    borderRadius: 15,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  customButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 4,
-    marginTop: 10,
-    width: 'auto',
-    alignSelf: 'center',
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 15,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginLeft: 15,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   profileButton: {
     marginRight: 15,
